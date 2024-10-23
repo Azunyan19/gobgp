@@ -353,6 +353,16 @@ message LsPrefixV6NLRI {
   LsPrefixDescriptor prefix_descriptor = 2;
 }
 
+// TODO: LsSrPolicyiCandidatePathNLRI
+
+message LsSrv6SIDNLRI {
+    LsNodeDescriptor local_node = 1;
+    LsSrv6SIDInformation srv6_sid_information = 2;
+    LsMultiTopologyIdentifier multi_topo_id = 3;
+    LsServiceChaining service_chaining = 4;
+    LsOpaqueMetadata opaque_metadata = 5;
+}
+
 // Based om RFC 7752, Table 1.
 enum LsNLRIType {
   LS_NLRI_UNKNOWN = 0; LS_NLRI_NODE = 1; LS_NLRI_LINK = 2;
@@ -377,6 +387,7 @@ message LsAddrPrefix {
   // - LsLinkNLRI
   // - LsPrefixV4NLRI
   // - LsPrefixV6NLRI
+  // - LsSrv6SIDNLRI
   google.protobuf.Any nlri = 2;
   uint32 length = 3;
   LsProtocolID protocol_id = 4;
@@ -936,17 +947,26 @@ message PrefixSID {
   repeated google.protobuf.Any tlvs = 1;
 }
 
-// https://tools.ietf.org/html/draft-ietf-idr-bgp-ls-service-segments#section-2
-message LsServiceChainingTLV {
-  uint16 servicetype = 1;
-  uint8 flags = 2;
-  uint8 traffictype = 3;
-  uint16 reserved = 4;
+// https://tools.ietf.org/html/rfc9552
+message LsSrv6SIDInformation {
+  repeated string sids = 1;
+}
+
+message LsMultiTopologyIdentifier {
+  repeated uint32 multi_topo_ids = 1;
 }
 
 // https://tools.ietf.org/html/draft-ietf-idr-bgp-ls-service-segments#section-2
-message LsOpaqueMetadataTLV {
-  uint16 opaquetype = 1;
-  uint8 flags = 2;
+message LsServiceChaining {
+  uint32 servicetype = 1;
+  uint32 flags = 2;
+  uint32 traffictype = 3;
+  uint32 reserved = 4;
+}
+
+// https://tools.ietf.org/html/draft-ietf-idr-bgp-ls-service-segments#section-2
+message LsOpaqueMetadata {
+  uint32 opaquetype = 1;
+  uint32 flags = 2;
   bytes value = 3;
 }
