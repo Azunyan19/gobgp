@@ -5910,6 +5910,8 @@ const (
 	LS_TLV_PREFIX_ATTRIBUTE_FLAGS = 1170 // draft-ietf-idr-bgp-ls-segment-routing-ext, TODO
 	LS_TLV_SOURCE_ROUTER_ID       = 1171 // draft-ietf-idr-bgp-ls-segment-routing-ext, TODO
 	LS_TLV_L2_BUNDLE_MEMBER_TLV   = 1172 // draft-ietf-idr-bgp-ls-segment-routing-ext, TODO
+
+	LS_TLV_SERVICE_CHAINING = 65000 // draft-ietf-idr-bgp-ls-segment-segments, TODO
 )
 
 type LsTLVInterface interface {
@@ -8688,6 +8690,39 @@ func (l *LsTLVSrlg) MarshalJSON() ([]byte, error) {
 		Type:  l.Type,
 		Value: l.Srlgs,
 	})
+}
+
+// https://tools.ietf.org/html/draft-ietf-idr-bgp-ls-sr-service-segments#section-2
+
+// ServiceChaining
+type LsTLVServiceChaining struct {
+	LsTLV
+	ServiceType uint16
+	Flags       uint8
+	TrafficType uint8
+	Reserved    uint16
+}
+
+func (l *LsTLVServiceChaining) DecodeFromBytes(data []byte) error {
+	value, err := l.LsTLV.DecodeFromBytes(data)
+	if err != nil {
+		return err
+	}
+
+	if l.Type != LS_TLV_SERVICE_CHAINING {
+		return malformedAttrListErr("Unexpected TLV type")
+	}
+
+	if len(value) != 6 {
+		return malformedAttrListErr("Incorrect length of Service Chaining TLV")
+	}
+
+	l.ServiceType = binary.BigEndian.Uint16(value[:1])
+	l.Flags = value[2]
+	l.TrafficType = value[3]
+	l.Reserved = binary.BigEndian.Uint16(value[4:])
+
+	return nil
 }
 
 type LsTLVIGPFlags struct {
