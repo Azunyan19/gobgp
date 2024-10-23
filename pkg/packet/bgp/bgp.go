@@ -8748,11 +8748,11 @@ func (l *LsTLVServiceChaining) MarshalJSON() ([]byte, error) {
 		TrafficType uint8     `json:"traffic_type"`
 		Reserved    uint16    `json:"reserved"`
 	}{
-		Type: l.Type,
+		Type:        l.Type,
 		ServiceType: l.ServiceType,
-		Flags: l.Flags,
+		Flags:       l.Flags,
 		TrafficType: l.TrafficType,
-		Reserved: l.Reserved,
+		Reserved:    l.Reserved,
 	})
 }
 
