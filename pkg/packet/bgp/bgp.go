@@ -5912,6 +5912,7 @@ const (
 	LS_TLV_L2_BUNDLE_MEMBER_TLV   = 1172 // draft-ietf-idr-bgp-ls-segment-routing-ext, TODO
 
 	LS_TLV_SERVICE_CHAINING = 65000 // draft-ietf-idr-bgp-ls-segment-segments, TODO
+	LS_TLV_OPAQUE_METADATA  = 65001 // draft-ietf-idr-bgp-ls-segment-segments, TODO
 )
 
 type LsTLVInterface interface {
@@ -8721,6 +8722,31 @@ func (l *LsTLVServiceChaining) DecodeFromBytes(data []byte) error {
 	l.Flags = value[2]
 	l.TrafficType = value[3]
 	l.Reserved = binary.BigEndian.Uint16(value[4:])
+
+	return nil
+}
+
+
+type LsTLVOpaqueMetadata struct {
+	LsTLV
+	OpaqueType uint16
+	Flags      uint8
+	Value      []byte
+}
+
+func (l *LsTLVOpaqueMetadata) DecodeFromBytes(data []byte) error {
+	value, err := l.LsTLV.DecodeFromBytes(data)
+	if err != nil {
+		return err
+	}
+
+	if l.Type != LS_TLV_OPAQUE_METADATA {
+		return malformedAttrListErr("Unexpected TLV type")
+	}
+
+	l.OpaqueType = binary.BigEndian.Uint16(value[:1])
+	l.Flags = value[2]
+	l.Value = value[3:]
 
 	return nil
 }
