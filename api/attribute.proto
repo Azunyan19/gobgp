@@ -943,3 +943,10 @@ message LsServiceChainingTLV {
   uint8 traffictype = 3;
   uint16 reserved = 4;
 }
+
+// https://tools.ietf.org/html/draft-ietf-idr-bgp-ls-service-segments#section-2
+message LsOpaqueMetadataTLV {
+  uint16 opaquetype = 1;
+  uint8 flags = 2;
+  bytes value = 3;
+}
