@@ -8726,6 +8726,35 @@ func (l *LsTLVServiceChaining) DecodeFromBytes(data []byte) error {
 	return nil
 }
 
+func (l *LsTLVServiceChaining) Serialize() ([]byte, error) {
+	var buf [6]byte
+	binary.BigEndian.PutUint16(buf[:1], l.ServiceType)
+	buf[2] = l.Flags
+	buf[2] = l.TrafficType
+	binary.BigEndian.PutUint16(buf[4:], l.Reserved)
+
+	return l.LsTLV.Serialize(buf[:])
+}
+
+func (l *LsTLVServiceChaining) String() string {
+	return fmt.Sprintf("{ServiceType: %v, Flags: %v, TrafficType: %v, Reserved: %v\n}", l.ServiceType, l.Flags, l.TrafficType, l.Reserved)
+}
+
+func (l *LsTLVServiceChaining) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type        LsTLVType `json:"type"`
+		ServiceType uint16    `json:"service_type"`
+		Flags       uint8     `json:"flags"`
+		TrafficType uint8     `json:"traffic_type"`
+		Reserved    uint16    `json:"reserved"`
+	}{
+		Type: l.Type,
+		ServiceType: l.ServiceType,
+		Flags: l.Flags,
+		TrafficType: l.TrafficType,
+		Reserved: l.Reserved,
+	})
+}
 
 type LsTLVOpaqueMetadata struct {
 	LsTLV
