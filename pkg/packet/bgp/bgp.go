@@ -8780,6 +8780,33 @@ func (l *LsTLVOpaqueMetadata) DecodeFromBytes(data []byte) error {
 	return nil
 }
 
+func (l *LsTLVOpaqueMetadata) Serialize() ([]byte, error) {
+	var buf []byte
+	binary.BigEndian.PutUint16(buf[:1], l.OpaqueType)
+	buf[2] = l.Flags
+	copy(buf[3:], l.Value)
+
+	return l.LsTLV.Serialize(buf[:])
+}
+
+func (l *LsTLVOpaqueMetadata) String() string {
+	return fmt.Sprintf("{OpaqueType: %v, Flags: %v, Value: %v\n}", l.OpaqueType, l.Flags, l.Value)
+}
+
+func (l *LsTLVOpaqueMetadata) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type       LsTLVType `json:"type"`
+		OpaqueType uint16    `json:"opaque_type"`
+		Flags      uint8     `json:"flags"`
+		Value      []byte    `json:"value"`
+	}{
+		Type:       l.Type,
+		Flags:      l.Flags,
+		OpaqueType: l.OpaqueType,
+		Value:      l.Value,
+	})
+}
+
 type LsTLVIGPFlags struct {
 	LsTLV
 	Flags uint8
