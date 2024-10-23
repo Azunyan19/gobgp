@@ -935,3 +935,11 @@ message PrefixSID {
   // - SRv6L2ServiceTLV Type 6
   repeated google.protobuf.Any tlvs = 1;
 }
+
+// https://tools.ietf.org/html/draft-ietf-idr-bgp-ls-service-segments#section-2
+message LsServiceChainingTLV {
+  uint16 servicetype = 1;
+  uint8 flags = 2;
+  uint8 traffictype = 3;
+  uint16 reserved = 4;
+}
