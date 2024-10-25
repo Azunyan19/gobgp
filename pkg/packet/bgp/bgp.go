@@ -5142,6 +5142,8 @@ const (
 	LS_NLRI_TYPE_LINK
 	LS_NLRI_TYPE_PREFIX_IPV4
 	LS_NLRI_TYPE_PREFIX_IPV6
+	LS_NLRI_TYPE_SR_POLICY_CANDIDATE_PATH
+	LS_NLRI_TYPE_SRV6_SID
 )
 
 type LsNLRIInterface interface {
@@ -5840,6 +5842,176 @@ func (l *LsPrefixV6NLRI) MarshalJSON() ([]byte, error) {
 		PrefixDesc: *prefixDesc,
 	})
 }
+
+// SKYLINE
+// TODO: LsSrPolicyiCandidatePathNLRI
+
+type LsSrv6SIDNLRI struct {
+	LsNLRI
+	LocalNodeDesc LsTLVInterface
+	Srv6SIDDesc   LsTLVInterface
+}
+
+func (l *LsSrv6SIDNLRI) String() string {
+	if l.LocalNodeDesc == nil {
+		return "SRv6SID { EMPTY }"
+	}
+
+	local := l.LocalNodeDesc.(*LsTLVNodeDescriptor).Extract()
+	srv6SID := &LsSrv6SIDDescriptor{}
+	srv6SID.ParseTLVs(l.Srv6SIDDesc, false)
+
+	return fmt.Sprintf("SRv6SID { LOCAL_NODE: %s SRv6SID: %v}", local.IGPRouterID, srv6SID.hoge)
+}
+
+func (l *LsSrv6SIDNLRI) DecodeFromBytes(data []byte) error {
+	if err := l.LsNLRI.DecodeFromBytes(data); err != nil {
+		return nil
+	}
+
+	tlv := data[lsNLRIHdrLen:]
+	m := make(map[LsTLVType]bool)
+
+	for len(tlv) >= tlvHdrLen {
+		sub := &LsTLV{}
+		_, err := sub.DecodeFromBytes(tlv)
+		if err != nil {
+			return err
+		}
+		m[sub.Type] = true
+
+		var subTLV LsTLVInterface
+		switch sub.Type {
+		case LS_TLV_LOCAL_NODE_DESC:
+			subTLV = &LsTLVNodeDescriptor{}
+		case LS_TLV_OSPF_ROUTE_TYPE:
+			subTLV = &LsTLVOspfRouteType{}
+		case LS_TLV_IP_REACH_INFO:
+			subTLV = &LsTLVIPReachability{}
+
+		default:
+			tlv = tlv[sub.Len():]
+			l.Length -= uint16(sub.Len())
+			continue
+		}
+
+		if err := subTLV.DecodeFromBytes(tlv); err != nil {
+			return err
+		}
+		tlv = tlv[subTLV.Len():]
+
+		switch sub.Type {
+		case LS_TLV_LOCAL_NODE_DESC:
+			l.LocalNodeDesc = subTLV
+		default:
+			l.PrefixDesc = append(l.PrefixDesc, subTLV)
+		}
+	}
+
+	required := []LsTLVType{LS_TLV_IP_REACH_INFO, LS_TLV_LOCAL_NODE_DESC}
+	for _, tlv := range required {
+		if _, ok := m[tlv]; !ok {
+			return malformedAttrListErr("Required TLV missing")
+		}
+	}
+
+	for _, tlv := range l.PrefixDesc {
+		switch v := tlv.(type) {
+		case *LsTLVIPReachability:
+			if v.PrefixLength > 8*net.IPv4len {
+				return malformedAttrListErr("Unexpected IP Reachability info")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (l *LsSrv6SIDNLRI) Serialize() ([]byte, error) {
+	//	if l.LocalNodeDesc == nil {
+	//		return nil, errors.New("required TLV missing")
+	//	}
+	//
+	// buf := make([]byte, 0)
+	// s, err := l.LocalNodeDesc.Serialize()
+	//
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//
+	// buf = append(buf, s...)
+	//
+	//	for _, tlv := range l.PrefixDesc {
+	//		s, err := tlv.Serialize()
+	//		if err != nil {
+	//			return nil, err
+	//		}
+	//		buf = append(buf, s...)
+	//	}
+	//
+	// return l.LsNLRI.Serialize(buf)
+}
+
+func (l *LsSrv6SIDNLRI) MarshalJSON() ([]byte, error) {
+	// prefixDesc := &LsPrefixDescriptor{}
+	// prefixDesc.ParseTLVs(l.PrefixDesc, false)
+	//
+	//	return json.Marshal(struct {
+	//		Type       LsNLRIType         `json:"type"`
+	//		LocalNode  LsNodeDescriptor   `json:"local_node_desc"`
+	//		PrefixDesc LsPrefixDescriptor `json:"prefix_desc"`
+	//	}{
+	//
+	//		Type:       l.Type(),
+	//		LocalNode:  *l.LocalNodeDesc.(*LsTLVNodeDescriptor).Extract(),
+	//		PrefixDesc: *prefixDesc,
+	//	})
+}
+
+func NewLsSrv6SIDTLVs(pd *LsPrefixDescriptor) []LsTLVInterface {
+	lsTLVs := []LsTLVInterface{}
+	//	for _, ipReach := range pd.IPReachability {
+	//		prefixSize, _ := ipReach.Mask.Size()
+	//		lenIpPrefix := (prefixSize-1)/8 + 1
+	//		lenIpReach := uint16(lenIpPrefix + 1)
+	//		var tlv *LsTLVIPReachability
+	//
+	//		if ipReach.IP.To4() != nil {
+	//			ip := ipReach.IP.To4()
+	//			tlv = &LsTLVIPReachability{
+	//				LsTLV: LsTLV{
+	//					Type:   LS_TLV_IP_REACH_INFO,
+	//					Length: lenIpReach,
+	//				},
+	//				PrefixLength: uint8(prefixSize),
+	//				Prefix:       []byte(ip)[:((lenIpPrefix-1)/8 + 1)],
+	//			}
+	//		} else if ipReach.IP.To16() != nil {
+	//			ip := ipReach.IP.To16()
+	//			tlv = &LsTLVIPReachability{
+	//				LsTLV: LsTLV{
+	//					Type:   LS_TLV_IP_REACH_INFO,
+	//					Length: lenIpReach,
+	//				},
+	//				PrefixLength: uint8(prefixSize),
+	//				Prefix:       []byte(ip)[:((lenIpPrefix-1)/8 + 1)],
+	//			}
+	//		}
+	//		lsTLVs = append(lsTLVs, tlv)
+	//	}
+	//
+	//	lsTLVs = append(lsTLVs,
+	//		&LsTLVOspfRouteType{
+	//			LsTLV: LsTLV{
+	//				Type:   LS_TLV_OSPF_ROUTE_TYPE,
+	//				Length: 1,
+	//			},
+	//			RouteType: pd.OSPFRouteType,
+	//		})
+	return lsTLVs
+}
+
+// SKYLINE
 
 type LsTLVType uint16
 
@@ -8693,6 +8865,7 @@ func (l *LsTLVSrlg) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// SKYLINE
 // https://tools.ietf.org/html/draft-ietf-idr-bgp-ls-sr-service-segments#section-2
 
 // ServiceChaining
@@ -8783,7 +8956,7 @@ func (l *LsTLVOpaqueMetadata) DecodeFromBytes(data []byte) error {
 func (l *LsTLVOpaqueMetadata) Serialize() ([]byte, error) {
 	var buf []byte
 	binary.BigEndian.PutUint16(buf[:1], l.OpaqueType)
-	buf[2] = l.Flags
+	buf = append(buf, l.Flags)
 	copy(buf[3:], l.Value)
 
 	return l.LsTLV.Serialize(buf[:])
@@ -8806,6 +8979,8 @@ func (l *LsTLVOpaqueMetadata) MarshalJSON() ([]byte, error) {
 		Value:      l.Value,
 	})
 }
+
+// SKYLINE
 
 type LsTLVIGPFlags struct {
 	LsTLV
@@ -9262,6 +9437,14 @@ func (l *LsAddrPrefix) DecodeFromBytes(data []byte, options ...*MarshallingOptio
 		prefixv6.Length = l.Length
 		prefixv6.NLRIType = LS_NLRI_TYPE_PREFIX_IPV4
 		l.NLRI = prefixv6
+
+	// TODO: LS_NLRI_TYPE_SR_POLICY_CANDIDATE_PATH
+
+	case LS_NLRI_TYPE_SRV6_SID:
+		srv6sid := &LsSrv6SidNLRI{}
+		srv6sid.Length = l.Length
+		srv6sid.NLRIType = LS_NLRI_TYPE_SRV6_SID
+		l.NLRI = srv6sid
 
 	default:
 		return malformedAttrListErr("Unsupported BGP-LS NLRI")
