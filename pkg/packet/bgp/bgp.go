@@ -8922,7 +8922,6 @@ func (l *LsTLVSrlg) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// SKYLINE
 // https://tools.ietf.org/html/draft-ietf-idr-bgp-ls-sr-service-segments#section-2
 
 // ServiceChaining
@@ -9031,8 +9030,6 @@ func (l *LsTLVOpaqueMetadata) MarshalJSON() ([]byte, error) {
 		Value:      l.Value,
 	})
 }
-
-// SKYLINE
 
 type LsTLVIGPFlags struct {
 	LsTLV
