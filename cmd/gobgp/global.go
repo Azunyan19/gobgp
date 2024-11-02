@@ -1608,7 +1608,14 @@ func parseLsSRv6SIDNLRIType(args []string, afi uint16) (bgp.AddrPrefixInterface,
 	}
 
 	serviceType, err := strconv.ParseUint(m["service-type"][0], 10, 64)
+	if err != nil {
+		return nil, nil, err
+	}
 	trafficType, err := strconv.ParseUint(m["traffic-type"][0], 10, 64)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	sc := &bgp.LsTLVServiceChaining{
 		LsTLV: bgp.LsTLV{
 			Type:   bgp.LS_TLV_SERVICE_CHAINING,
@@ -1620,6 +1627,10 @@ func parseLsSRv6SIDNLRIType(args []string, afi uint16) (bgp.AddrPrefixInterface,
 	}
 
 	opaqueType, err := strconv.ParseUint(m["opaque-type"][0], 10, 64)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	ot := &bgp.LsTLVOpaqueMetadata{
 		LsTLV: bgp.LsTLV{
 			Type:   bgp.LS_TLV_OPAQUE_METADATA,
