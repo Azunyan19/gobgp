@@ -878,6 +878,64 @@ func UnmarshalLsPrefixDescriptor(*api.LsPrefixDescriptor) (*bgp.LsPrefixDescript
 	return nil, nil
 }
 
+func UnmarshalLsTLVSrv6SIDInfo(ssi *api.LsSrv6SIDInformation) (*bgp.LsTLVSrv6SIDInfo, error) {
+	sids := []net.IP{}
+	var ssiLen uint16
+	for _, sid := range ssi.Sids {
+		sids = append(sids, net.ParseIP(sid))
+		ssiLen += 16
+	}
+	return &bgp.LsTLVSrv6SIDInfo{
+		LsTLV: bgp.LsTLV{
+			Type:   bgp.LS_TLV_SRV6_SID_INFO,
+			Length: ssiLen,
+		},
+		SIDs: sids,
+	}, nil
+}
+
+func UnmarshalLsTLVMultiTopoID(mti *api.LsMultiTopologyIdentifier) (*bgp.LsTLVMultiTopoID, error) {
+	multiTopoIDs := make([]uint16, len(mti.MultiTopoIds))
+	var mtiLen uint16
+	for i, v := range mti.MultiTopoIds {
+		multiTopoIDs[i] = uint16(v)
+		mtiLen += 2
+	}
+
+	return &bgp.LsTLVMultiTopoID{
+		LsTLV: bgp.LsTLV{
+			Type:   bgp.LS_TLV_MULTI_TOPO_ID,
+			Length: mtiLen,
+		},
+		MultiTopoIDs: multiTopoIDs,
+	}, nil
+}
+
+func UnmarshalLsTLVServiceChaining(sc *api.LsServiceChaining) (*bgp.LsTLVServiceChaining, error) {
+	return &bgp.LsTLVServiceChaining{
+		LsTLV: bgp.LsTLV{
+			Type:   bgp.LS_TLV_SERVICE_CHAINING,
+			Length: 6,
+		},
+		ServiceType: uint16(sc.Servicetype),
+		Flags:       uint8(sc.Flags),
+		TrafficType: uint8(sc.Traffictype),
+	}, nil
+}
+
+func UnmarshalLsTLVOpaqueMetadata(om *api.LsOpaqueMetadata) (*bgp.LsTLVOpaqueMetadata, error) {
+	omLen := 4 + len(om.Value) // Opawue Type (2byte) + Flags (2byte) + Value (variable)
+	return &bgp.LsTLVOpaqueMetadata{
+		LsTLV: bgp.LsTLV{
+			Type:   bgp.LS_TLV_OPAQUE_METADATA,
+			Length: uint16(omLen),
+		},
+		OpaqueType: uint16(om.Opaquetype),
+		Flags:      uint8(om.Flags),
+		Value:      om.Value,
+	}, nil
+}
+
 func UnmarshalLsAttribute(a *api.LsAttribute) (*bgp.LsAttribute, error) {
 	lsAttr := &bgp.LsAttribute{
 		Node:           bgp.LsAttributeNode{},
@@ -1697,7 +1755,6 @@ func UnmarshalNLRI(rf bgp.RouteFamily, an *apb.Any) (bgp.AddrPrefixInterface, er
 					},
 				},
 			}
-
 		case *api.LsPrefixV6NLRI:
 			lnd, err := UnmarshalLsNodeDescriptor(tp.LocalNode)
 			if err != nil {
@@ -1717,6 +1774,50 @@ func UnmarshalNLRI(rf bgp.RouteFamily, an *apb.Any) (bgp.AddrPrefixInterface, er
 				NLRI: &bgp.LsPrefixV6NLRI{
 					LocalNodeDesc: &lndTLV,
 					PrefixDesc:    pdSubTLVs,
+					LsNLRI: bgp.LsNLRI{
+						NLRIType:   bgp.LsNLRIType(v.Type),
+						Length:     uint16(v.Length),
+						ProtocolID: bgp.LsProtocolID(v.ProtocolId),
+						Identifier: v.Identifier,
+					},
+				},
+			}
+		case *api.LsSrv6SIDNLRI:
+			lnd, err := UnmarshalLsNodeDescriptor(tp.LocalNode)
+			if err != nil {
+				return nil, err
+			}
+			lndTLV := bgp.NewLsTLVNodeDescriptor(lnd, bgp.LS_TLV_LOCAL_NODE_DESC)
+
+			ssiTLV, err := UnmarshalLsTLVSrv6SIDInfo(tp.Srv6SidInformation)
+			if err != nil {
+				return nil, err
+			}
+
+			mtiTLV, err := UnmarshalLsTLVMultiTopoID(tp.MultiTopoId)
+			if err != nil {
+				return nil, err
+			}
+
+			scTLV, err := UnmarshalLsTLVServiceChaining(tp.ServiceChaining)
+			if err != nil {
+				return nil, err
+			}
+
+			omTLV, err := UnmarshalLsTLVOpaqueMetadata(tp.OpaqueMetadata)
+			if err != nil {
+				return nil, err
+			}
+
+			nlri = &bgp.LsAddrPrefix{
+				Type:   bgp.LS_NLRI_TYPE_SRV6_SID,
+				Length: uint16(v.Length),
+				NLRI: &bgp.LsSrv6SIDNLRI{
+					LocalNodeDesc:   &lndTLV,
+					Srv6SIDInfo:     ssiTLV,
+					MultiTopoID:     mtiTLV,
+					ServiceChaining: scTLV,
+					OpaqueMetadata:  omTLV,
 					LsNLRI: bgp.LsNLRI{
 						NLRIType:   bgp.LsNLRIType(v.Type),
 						Length:     uint16(v.Length),
