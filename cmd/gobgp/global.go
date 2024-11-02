@@ -1520,7 +1520,7 @@ func parseLsLinkNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAttri
 	return nlri, pathAttributeLs, nil
 }
 
-func parseLsSRv6SIDNLRIType(args []string, afi uint16) (bgp.AddrPrefixInterface, *bgp.PathAttributeLs, error) {
+func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAttributeLs, error) {
 	// Format:
 	// gobgp global rib add -a ls srv6sid bgp identifier <identifier> local-asn <local-asn> local-bgp-ls-id <local-bgp-ls-id> local-bgp-router-id <local-bgp-router-id> [local-bgp-confederation-member 1] sids <sids>... [multi-topology-id <multi-topology-id>...] [service-type <service-type> traffic-type <traffic-type>] [opaque-type <opaque-type> value <value>
 	req := 11
@@ -1690,7 +1690,7 @@ func parseLsArgs(args []string, afi uint16) (bgp.AddrPrefixInterface, *bgp.PathA
 		return parseLsLinkNLRIType(args)
 		// TODO: case IPv4 Topology Prefix / IPv6 Topology Prefix / TE Policy
 	case "srv6sid":
-		return parseLsSRv6SIDNLRIType(args, afi)
+		return parseLsSRv6SIDNLRIType(args)
 	}
 
 	return nil, nil, fmt.Errorf("invalid nlriType. expect [link] but %s", nlriType)
