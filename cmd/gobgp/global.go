@@ -1533,29 +1533,27 @@ func parseLsLinkNLRIType(args []string, afi uint16) (bgp.AddrPrefixInterface, *b
 	return nlri, pathAttributeLs, nil
 }
 
-// SKYLINE2
-func parseLsNodeNLRIType(args []string, afi uint16) (bgp.AddrPrefixInterface, *bgp.PathAttributeLs, error) {
+func parseLsSRv6SIDNLRIType(args []string, afi uint16) (bgp.AddrPrefixInterface, *bgp.PathAttributeLs, error) {
 	// Format:
-	// gobgp global rib add -a ls node bgp identifier <identifier> local-asn <local-asn> local-bgp-ls-id <local-bgp-ls-id> local-bgp-router-id <local-bgp-router-id> [local-bgp-confederation-member 1] sid <sid> [v-flag] [l-flag] [b-flag] [p-flag] [weight <weight>]
-	// sid-type node
-	req := 13
+	// gobgp global rib add -a ls srv6sid bgp identifier <identifier> local-asn <local-asn> local-bgp-ls-id <local-bgp-ls-id> local-bgp-router-id <local-bgp-router-id> [local-bgp-confederation-member 1] sids <sids>... [multi-topology-id <multi-topology-id>...] [service-type <service-type> traffic-type <traffic-type>] [opaque-type <opaque-type> value <value>
+	req := 11
 	if len(args) < req {
-		return nil, nil, fmt.Errorf("%d args required at least, but got %d\n Usage: gobgp global rib add -a ls node bgp identifier <identifier> local-asn <local-asn> local-bgp-ls-id <local-bgp-ls-id> local-bgp-router-id <local-bgp-router-id> [local-bgp-confederation-member 1] sid <sid> sid-type node [v-flag] [l-flag] [b-flag] [p-flag] [weight 1]\n", req, len(args))
+		return nil, nil, fmt.Errorf("%d args required at least, but got %d", req, len(args))
 	}
 
+	//memo: local node descriptor, srv6 sid information, service chaining, opaque metadata
 	m, err := extractReserved(args, map[string]int{
 		"identifier":                     paramSingle,
 		"local-asn":                      paramSingle,
 		"local-bgp-ls-id":                paramSingle,
 		"local-bgp-router-id":            paramSingle,
 		"local-bgp-confederation-member": paramSingle,
-		"sid":                            paramSingle,
-		"sid-type":                       paramSingle,
-		"v-flag":                         paramFlag,
-		"l-flag":                         paramFlag,
-		"b-flag":                         paramFlag,
-		"p-flag":                         paramFlag,
-		"weight":                         paramSingle,
+		"sids":                           paramList,
+		"multi-topology-id":              paramList,
+		"service-type":                   paramSingle,
+		"traffic-type":                   paramSingle,
+		"opaque-type":                    paramSingle,
+		"value":                          paramSingle,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -1569,18 +1567,18 @@ func parseLsNodeNLRIType(args []string, afi uint16) (bgp.AddrPrefixInterface, *b
 	localAsn, err := strconv.ParseUint(m["local-asn"][0], 10, 64)
 	if err != nil {
 		return nil, nil, err
-	}
 
+	}
 	localBgpLsId, err := strconv.ParseUint(m["local-bgp-ls-id"][0], 10, 64)
 	if err != nil {
 		return nil, nil, err
+
 	}
-	// sid <sid> sid-type node [v-flag] [l-flag] [b-flag] [p-flag] [weight <weight>]
 	localBgpConfederationMember, err := strconv.ParseUint(m["local-bgp-confederation-member"][0], 10, 64)
 	if err != nil {
 		return nil, nil, err
-	}
 
+	}
 	lnd := &bgp.LsNodeDescriptor{
 		Asn:                    uint32(localAsn),
 		BGPLsID:                uint32(localBgpLsId),
@@ -1590,33 +1588,46 @@ func parseLsNodeNLRIType(args []string, afi uint16) (bgp.AddrPrefixInterface, *b
 		BGPRouterID:            net.ParseIP(m["local-bgp-router-id"][0]),
 		BGPConfederationMember: uint32(localBgpConfederationMember),
 	}
-
 	lndTLV := bgp.NewLsTLVNodeDescriptor(lnd, bgp.LS_TLV_LOCAL_NODE_DESC)
 
-	// sidTypeString := m["sid-type"][0]
-
-	var peerNodeFlag uint8
-
-	if _, ok := m["v-flag"]; ok {
-		peerNodeFlag = peerNodeFlag | 0x80
-	}
-	if _, ok := m["l-flag"]; ok {
-		peerNodeFlag = peerNodeFlag | 0x40
-	}
-	if _, ok := m["b-flag"]; ok {
-		peerNodeFlag = peerNodeFlag | 0x20
-	}
-	if _, ok := m["p-flag"]; ok {
-		peerNodeFlag = peerNodeFlag | 0x10
+	sids, ssiLen := apiutil.StringToNetIPLsTLVSrv6SIDInfo(m["sids"])
+	ssi := &bgp.LsTLVSrv6SIDInfo{
+		LsTLV: bgp.LsTLV{
+			Type:   bgp.LS_TLV_SRV6_SID_INFO,
+			Length: ssiLen,
+		},
+		SIDs: sids,
 	}
 
-	lsTLVWeight, err := strconv.ParseUint(m["weight"][0], 10, 64)
-	if err != nil {
-		return nil, nil, err
+	mti := &bgp.LsTLVMultiTopoID{
+		LsTLV: bgp.LsTLV{
+			Type:   bgp.LS_TLV_MULTI_TOPO_ID,
+			Length: 0,
+		},
+		MultiTopoIDs: []uint16{},
 	}
-	lsTLVSid, err := strconv.ParseUint(m["sid"][0], 10, 64)
-	if err != nil {
-		return nil, nil, err
+
+	serviceType, err := strconv.ParseUint(m["service-type"][0], 10, 64)
+	trafficType, err := strconv.ParseUint(m["traffic-type"][0], 10, 64)
+	sc := &bgp.LsTLVServiceChaining{
+		LsTLV: bgp.LsTLV{
+			Type:   bgp.LS_TLV_SERVICE_CHAINING,
+			Length: 6,
+		},
+		ServiceType: uint16(serviceType),
+		Flags:       0, // MUST be 0
+		TrafficType: uint8(trafficType),
+	}
+
+	opaqueType, err := strconv.ParseUint(m["opaque-type"][0], 10, 64)
+	ot := &bgp.LsTLVOpaqueMetadata{
+		LsTLV: bgp.LsTLV{
+			Type:   bgp.LS_TLV_OPAQUE_METADATA,
+			Length: 0,
+		},
+		OpaqueType: uint16(opaqueType),
+		Flags:      0, // MUST be 0
+		Value:      []byte(m["value"][0]),
 	}
 
 	const lsTlvLen = 7
@@ -1636,25 +1647,27 @@ func parseLsNodeNLRIType(args []string, afi uint16) (bgp.AddrPrefixInterface, *b
 
 	const CodeLen = 1
 	const topologyLen = 8
-	LsNLRIhdrlen := lndTLV.Len() + topologyLen + CodeLen
+	LsNLRIhdrlen := lndTLV.Len() + ssi.Len() + mti.Len() + sc.Len() + ot.Len() + topologyLen + CodeLen
 	lsNlri := bgp.LsNLRI{
-		NLRIType:   bgp.LS_NLRI_TYPE_NODE,
+		NLRIType:   bgp.LS_NLRI_TYPE_SRV6_SID,
 		Length:     uint16(LsNLRIhdrlen),
 		ProtocolID: 7,
 		Identifier: identifier,
 	}
 	nlri := &bgp.LsAddrPrefix{
-		Type:   bgp.LS_NLRI_TYPE_NODE,
+		Type:   bgp.LS_NLRI_TYPE_SRV6_SID,
 		Length: 4,
-		NLRI: &bgp.LsNodeNLRI{
-			LsNLRI:        lsNlri,
-			LocalNodeDesc: &lndTLV,
+		NLRI: &bgp.LsSrv6SIDNLRI{
+			LsNLRI:          lsNlri,
+			LocalNodeDesc:   &lndTLV,
+			Srv6SIDInfo:     ssi,
+			MultiTopoID:     mti,
+			ServiceChaining: sc,
+			OpaqueMetadata:  ot,
 		},
 	}
 	return nlri, pathAttributeLs, nil
 }
-
-// SKYLINE2
 
 func lsTLVTypeSelect(s string) bgp.LsTLVType {
 	switch s {
@@ -1676,15 +1689,12 @@ func parseLsArgs(args []string, afi uint16) (bgp.AddrPrefixInterface, *bgp.PathA
 	}
 	nlriType := args[0]
 	switch nlriType {
-	// link node
 	case "link":
 		return parseLsLinkNLRIType(args, afi)
-	// case node SKYLINE
-	case "node":
-		args = args[1:]
-		return parseLsNodeNLRIType(args, afi)
+		// TODO: case IPv4 Topology Prefix / IPv6 Topology Prefix / TE Policy
+	case "srv6sid":
+		return parseLsSRv6SIDNLRIType(args, afi)
 	}
-	// TODO: IPv4 Topology Prefix / IPv6 Topology Prefix / TE Policy / SRv6 SID
 
 	return nil, nil, fmt.Errorf("invalid nlriType. expect [link] but %s", nlriType)
 }
