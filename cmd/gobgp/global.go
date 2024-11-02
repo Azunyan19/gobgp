@@ -1682,7 +1682,6 @@ func lsTLVTypeSelect(s string) bgp.LsTLVType {
 	return bgp.LS_TLV_UNKNOWN
 }
 
-// SKYLINE1
 func parseLsArgs(args []string, afi uint16) (bgp.AddrPrefixInterface, *bgp.PathAttributeLs, error) {
 	if len(args) < 1 {
 		return nil, nil, fmt.Errorf("lack of nlriType")
@@ -1698,8 +1697,6 @@ func parseLsArgs(args []string, afi uint16) (bgp.AddrPrefixInterface, *bgp.PathA
 
 	return nil, nil, fmt.Errorf("invalid nlriType. expect [link] but %s", nlriType)
 }
-
-// SKYLINE1
 
 func extractOrigin(args []string) ([]string, bgp.PathAttributeInterface, error) {
 	typ := bgp.BGP_ORIGIN_ATTR_TYPE_INCOMPLETE
