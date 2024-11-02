@@ -1680,7 +1680,7 @@ func lsTLVTypeSelect(s string) bgp.LsTLVType {
 	return bgp.LS_TLV_UNKNOWN
 }
 
-func parseLsArgs(args []string, afi uint16) (bgp.AddrPrefixInterface, *bgp.PathAttributeLs, error) {
+func parseLsArgs(args []string) (bgp.AddrPrefixInterface, *bgp.PathAttributeLs, error) {
 	if len(args) < 1 {
 		return nil, nil, fmt.Errorf("lack of nlriType")
 	}
@@ -2100,7 +2100,7 @@ func parsePath(rf bgp.RouteFamily, args []string) (*api.Path, error) {
 	case bgp.RF_MUP_IPv6:
 		nlri, psid, extcomms, err = parseMUPArgs(args, bgp.AFI_IP6, nexthop)
 	case bgp.RF_LS:
-		nlri, ls, err = parseLsArgs(args, bgp.AFI_LS)
+		nlri, ls, err = parseLsArgs(args)
 	default:
 		return nil, fmt.Errorf("unsupported route family: %s", rf)
 	}
