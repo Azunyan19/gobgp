@@ -1302,20 +1302,7 @@ func parseMUPArgs(args []string, afi uint16, nexthop string) (bgp.AddrPrefixInte
 	return nil, nil, nil, fmt.Errorf("invalid subtype. expect [isd|dsd|t1st|t2st] but %s", subtype)
 }
 
-func parseLsLinkProtocol(args []string, afi uint16) (bgp.AddrPrefixInterface, *bgp.PathAttributeLs, error) {
-	if len(args) < 2 {
-		return nil, nil, fmt.Errorf("lack of protocolType")
-	}
-	protocolType := args[1]
-	switch protocolType {
-	// TODO case ospf/isis
-	case "bgp":
-		return parseLsLinkNLRIType(args, afi)
-	}
-	return nil, nil, fmt.Errorf("invalid protocolType. expect [bgp] but %s", protocolType)
-}
-
-func parseLsLinkNLRIType(args []string, afi uint16) (bgp.AddrPrefixInterface, *bgp.PathAttributeLs, error) {
+func parseLsLinkNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAttributeLs, error) {
 	// Format:
 	// <ip prefix> identifier <identifier> asn <asn> bgp-ls-id <bgp-ls-id> ospf
 	req := 26
@@ -1700,7 +1687,7 @@ func parseLsArgs(args []string, afi uint16) (bgp.AddrPrefixInterface, *bgp.PathA
 	nlriType := args[0]
 	switch nlriType {
 	case "link":
-		return parseLsLinkNLRIType(args, afi)
+		return parseLsLinkNLRIType(args)
 		// TODO: case IPv4 Topology Prefix / IPv6 Topology Prefix / TE Policy
 	case "srv6sid":
 		return parseLsSRv6SIDNLRIType(args, afi)
