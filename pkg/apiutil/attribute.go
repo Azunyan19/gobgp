@@ -878,13 +878,18 @@ func UnmarshalLsPrefixDescriptor(*api.LsPrefixDescriptor) (*bgp.LsPrefixDescript
 	return nil, nil
 }
 
-func UnmarshalLsTLVSrv6SIDInfo(ssi *api.LsSrv6SIDInformation) (*bgp.LsTLVSrv6SIDInfo, error) {
+func StringToNetIPLsTLVSrv6SIDInfo(s []string) ([]net.IP, uint16) {
 	sids := []net.IP{}
 	var ssiLen uint16
-	for _, sid := range ssi.Sids {
+	for _, sid := range s {
 		sids = append(sids, net.ParseIP(sid))
 		ssiLen += 16
 	}
+	return sids, ssiLen
+}
+
+func UnmarshalLsTLVSrv6SIDInfo(ssi *api.LsSrv6SIDInformation) (*bgp.LsTLVSrv6SIDInfo, error) {
+	sids, ssiLen := StringToNetIPLsTLVSrv6SIDInfo(ssi.Sids)
 	return &bgp.LsTLVSrv6SIDInfo{
 		LsTLV: bgp.LsTLV{
 			Type:   bgp.LS_TLV_SRV6_SID_INFO,
