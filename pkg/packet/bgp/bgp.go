@@ -8931,7 +8931,6 @@ type LsTLVServiceChaining struct {
 	ServiceType uint16
 	Flags       uint8
 	TrafficType uint8
-	Reserved    uint16
 }
 
 func (l *LsTLVServiceChaining) DecodeFromBytes(data []byte) error {
@@ -8951,7 +8950,6 @@ func (l *LsTLVServiceChaining) DecodeFromBytes(data []byte) error {
 	l.ServiceType = binary.BigEndian.Uint16(value[:1])
 	l.Flags = value[2]
 	l.TrafficType = value[3]
-	l.Reserved = binary.BigEndian.Uint16(value[4:])
 
 	return nil
 }
@@ -8961,13 +8959,12 @@ func (l *LsTLVServiceChaining) Serialize() ([]byte, error) {
 	binary.BigEndian.PutUint16(buf[:1], l.ServiceType)
 	buf[2] = l.Flags
 	buf[2] = l.TrafficType
-	binary.BigEndian.PutUint16(buf[4:], l.Reserved)
 
 	return l.LsTLV.Serialize(buf[:])
 }
 
 func (l *LsTLVServiceChaining) String() string {
-	return fmt.Sprintf("{ServiceType: %v, Flags: %v, TrafficType: %v, Reserved: %v\n}", l.ServiceType, l.Flags, l.TrafficType, l.Reserved)
+	return fmt.Sprintf("{ServiceType: %v, Flags: %v, TrafficType: %v}", l.ServiceType, l.Flags, l.TrafficType)
 }
 
 func (l *LsTLVServiceChaining) MarshalJSON() ([]byte, error) {
@@ -8976,13 +8973,11 @@ func (l *LsTLVServiceChaining) MarshalJSON() ([]byte, error) {
 		ServiceType uint16    `json:"service_type"`
 		Flags       uint8     `json:"flags"`
 		TrafficType uint8     `json:"traffic_type"`
-		Reserved    uint16    `json:"reserved"`
 	}{
 		Type:        l.Type,
 		ServiceType: l.ServiceType,
 		Flags:       l.Flags,
 		TrafficType: l.TrafficType,
-		Reserved:    l.Reserved,
 	})
 }
 
