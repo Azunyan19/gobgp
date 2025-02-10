@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-systemd/v22/daemon"
+	"github.com/getsentry/sentry-go"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/jessevdk/go-flags"
 	"github.com/kr/pretty"
@@ -41,9 +42,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/osrg/gobgp/v3/internal/pkg/metrics"
 	"github.com/osrg/gobgp/v3/internal/pkg/version"
 	"github.com/osrg/gobgp/v3/pkg/config"
+	"github.com/osrg/gobgp/v3/pkg/metrics"
 	"github.com/osrg/gobgp/v3/pkg/server"
 )
 
@@ -54,36 +55,67 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 
 	var opts struct {
-		ConfigFile       string `short:"f" long:"config-file" description:"specifying a config file"`
-		ConfigType       string `short:"t" long:"config-type" description:"specifying config type (toml, yaml, json)" default:"toml"`
-		ConfigAutoReload bool   `short:"a" long:"config-auto-reload" description:"activate config auto reload on changes"`
-		LogLevel         string `short:"l" long:"log-level" description:"specifying log level"`
-		LogPlain         bool   `short:"p" long:"log-plain" description:"use plain format for logging (json by default)"`
-		UseSyslog        string `short:"s" long:"syslog" description:"use syslogd"`
-		Facility         string `long:"syslog-facility" description:"specify syslog facility"`
-		DisableStdlog    bool   `long:"disable-stdlog" description:"disable standard logging"`
-		CPUs             int    `long:"cpus" description:"specify the number of CPUs to be used"`
-		GrpcHosts        string `long:"api-hosts" description:"specify the hosts that gobgpd listens on" default:":50051"`
-		GracefulRestart  bool   `short:"r" long:"graceful-restart" description:"flag restart-state in graceful-restart capability"`
-		Dry              bool   `short:"d" long:"dry-run" description:"check configuration"`
-		PProfHost        string `long:"pprof-host" description:"specify the host that gobgpd listens on for pprof and metrics" default:"localhost:6060"`
-		PProfDisable     bool   `long:"pprof-disable" description:"disable pprof profiling"`
-		MetricsPath      string `long:"metrics-path" description:"specify path for prometheus metrics, empty value disables them" default:"/metrics"`
-		UseSdNotify      bool   `long:"sdnotify" description:"use sd_notify protocol"`
-		TLS              bool   `long:"tls" description:"enable TLS authentication for gRPC API"`
-		TLSCertFile      string `long:"tls-cert-file" description:"The TLS cert file"`
-		TLSKeyFile       string `long:"tls-key-file" description:"The TLS key file"`
-		TLSClientCAFile  string `long:"tls-client-ca-file" description:"Optional TLS client CA file to authenticate clients against"`
-		Version          bool   `long:"version" description:"show version number"`
+		ConfigFile        string  `short:"f" long:"config-file" description:"specifying a config file"`
+		ConfigType        string  `short:"t" long:"config-type" description:"specifying config type (toml, yaml, json)" default:"toml"`
+		ConfigAutoReload  bool    `short:"a" long:"config-auto-reload" description:"activate config auto reload on changes"`
+		ConfigStrict      bool    `long:"config-strict" description:"make any config error fatal"`
+		LogLevel          string  `short:"l" long:"log-level" description:"specifying log level"`
+		LogPlain          bool    `short:"p" long:"log-plain" description:"use plain format for logging (json by default)"`
+		UseSyslog         string  `short:"s" long:"syslog" description:"use syslogd"`
+		Facility          string  `long:"syslog-facility" description:"specify syslog facility"`
+		DisableStdlog     bool    `long:"disable-stdlog" description:"disable standard logging"`
+		CPUs              int     `long:"cpus" description:"specify the number of CPUs to be used"`
+		GrpcHosts         string  `long:"api-hosts" description:"specify the hosts that gobgpd listens on" default:":50051"`
+		GracefulRestart   bool    `short:"r" long:"graceful-restart" description:"flag restart-state in graceful-restart capability"`
+		Dry               bool    `short:"d" long:"dry-run" description:"check configuration"`
+		PProfHost         string  `long:"pprof-host" description:"specify the host that gobgpd listens on for pprof and metrics" default:"localhost:6060"`
+		PProfDisable      bool    `long:"pprof-disable" description:"disable pprof profiling"`
+		MetricsPath       string  `long:"metrics-path" description:"specify path for prometheus metrics, empty value disables them" default:"/metrics"`
+		UseSdNotify       bool    `long:"sdnotify" description:"use sd_notify protocol"`
+		TLS               bool    `long:"tls" description:"enable TLS authentication for gRPC API"`
+		TLSCertFile       string  `long:"tls-cert-file" description:"The TLS cert file"`
+		TLSKeyFile        string  `long:"tls-key-file" description:"The TLS key file"`
+		TLSClientCAFile   string  `long:"tls-client-ca-file" description:"Optional TLS client CA file to authenticate clients against"`
+		Version           bool    `long:"version" description:"show version number"`
+		SentryDSN         string  `long:"sentry-dsn" description:"Sentry DSN" default:""`
+		SentryEnvironment string  `long:"sentry-environment" description:"Sentry environment" default:"development"`
+		SentrySampleRate  float64 `long:"sentry-sample-rate" description:"Sentry traces sample rate" default:"1.0"`
+		SentryDebug       bool    `long:"sentry-debug" description:"Sentry debug mode"`
 	}
 	_, err := flags.Parse(&opts)
 	if err != nil {
-		os.Exit(1)
+		logger.Fatalf("Error parsing flags: %v", err)
 	}
 
 	if opts.Version {
 		fmt.Println("gobgpd version", version.Version())
 		os.Exit(0)
+	}
+
+	// if Sentry DSN is provided, initialize Sentry
+	// We would like to capture errors and exceptions, but not traces
+	if opts.SentryDSN != "" {
+		logger.Debugf("Initializing Sentry, Env: %s, Release: %s, SampleRate: %f, Debug: %t",
+			opts.SentryEnvironment, version.Version(), opts.SentrySampleRate, opts.SentryDebug)
+		err := sentry.Init(sentry.ClientOptions{
+			Dsn:         opts.SentryDSN,
+			SampleRate:  opts.SentrySampleRate,
+			Debug:       opts.SentryDebug,
+			Release:     version.Version(),
+			Environment: opts.SentryEnvironment,
+			// Disable tracing as it's not relevant for now
+			EnableTracing:    false,
+			TracesSampleRate: 0.0,
+		})
+		if err != nil {
+			logger.Fatalf("sentry.Init: %s", err)
+		}
+		// Flush buffered events before the program terminates.
+		defer sentry.Flush(2 * time.Second)
+
+		if opts.SentryDebug {
+			sentry.CaptureMessage("Sentry debug mode enabled on gobgpd")
+		}
 	}
 
 	if opts.CPUs == 0 {
@@ -197,8 +229,15 @@ func main() {
 	}
 
 	logger.Info("gobgpd started")
-	bgpServer := server.NewBgpServer(server.GrpcListenAddress(opts.GrpcHosts), server.GrpcOption(grpcOpts), server.LoggerOption(&builtinLogger{logger: logger}))
+	bgpLogger := &builtinLogger{logger: logger, cfgStrict: opts.ConfigStrict}
+	fsmTimingCollector := metrics.NewFSMTimingsCollector()
+	bgpServer := server.NewBgpServer(
+		server.GrpcListenAddress(opts.GrpcHosts),
+		server.GrpcOption(grpcOpts),
+		server.LoggerOption(bgpLogger),
+		server.TimingHookOption(fsmTimingCollector))
 	prometheus.MustRegister(metrics.NewBgpCollector(bgpServer))
+	prometheus.MustRegister(fsmTimingCollector)
 	go bgpServer.Serve()
 
 	if opts.UseSdNotify {
@@ -258,6 +297,8 @@ func main() {
 		})
 	}
 
+	// Avoid crashing gobgpd on reload - it shouldn't flush policy entirely, so it's safe to continue to run
+	bgpLogger.cfgStrict = false
 	for sig := range sigCh {
 		if sig != syscall.SIGHUP {
 			stopServer(bgpServer, opts.UseSdNotify)
