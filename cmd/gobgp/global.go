@@ -1600,9 +1600,9 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 	mti := &bgp.LsTLVMultiTopoID{
 		LsTLV: bgp.LsTLV{
 			Type:   bgp.LS_TLV_MULTI_TOPO_ID,
-			Length: 0,
+			Length: uint16(2 * len(multiTopoIDs)),
 		},
-		MultiTopoIDs: []uint16{},
+		MultiTopoIDs: multiTopoIDs,
 	}
 
 	serviceType, err := strconv.ParseUint(m["service-type"][0], 10, 64)
