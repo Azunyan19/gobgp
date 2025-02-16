@@ -1453,7 +1453,7 @@ func MarshalNLRI(value bgp.AddrPrefixInterface) (*apb.Any, error) {
 func MarshalNLRIs(values []bgp.AddrPrefixInterface) ([]*apb.Any, error) {
 	fmt.Printf("values: %s\n", values)
 	nlris := make([]*apb.Any, 0, len(values))
-	fmt.Printf("nlris: %s\n", nlris)
+	//fmt.Printf("nlris: %s\n", nlris)
 	for _, value := range values {
 		nlri, err := MarshalNLRI(value)
 		if err != nil {
@@ -1461,6 +1461,7 @@ func MarshalNLRIs(values []bgp.AddrPrefixInterface) ([]*apb.Any, error) {
 		}
 		nlris = append(nlris, nlri)
 	}
+	fmt.Printf("nlris after marshal: %v\n", nlris)
 	return nlris, nil
 }
 
