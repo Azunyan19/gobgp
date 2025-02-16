@@ -355,6 +355,11 @@ message LsPrefixV6NLRI {
 
 // TODO: LsSrPolicyiCandidatePathNLRI
 
+message LsLocalNodeDesc {
+  // Adjust the fields as needed. For now, a placeholder field.
+  bytes data = 1;
+}
+
 message LsSrv6SIDNLRI {
     LsNodeDescriptor local_node = 1;
     LsLocalNodeDesc local_node_desc = 2;
