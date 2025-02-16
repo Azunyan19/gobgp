@@ -899,6 +899,18 @@ func UnmarshalLsTLVSrv6SIDInfo(ssi *api.LsSrv6SIDInformation) (*bgp.LsTLVSrv6SID
 	}, nil
 }
 
+//AZUNYAN
+func MarshalLsTLVSrv6SIDInfo(info *bgp.LsTLVSrv6SIDInfo) (*api.LsSrv6SIDInformation, error) {
+	sids := make([]string, len(info.SIDs))
+	for i, ip := range info.SIDs {
+		sids[i] = ip.String()
+	}
+	return &api.LsSrv6SIDInformation{
+		Sids: sids,
+	}, nil
+}
+//AZUNYAN
+
 func UnmarshalLsTLVMultiTopoID(mti *api.LsMultiTopologyIdentifier) (*bgp.LsTLVMultiTopoID, error) {
 	multiTopoIDs := make([]uint16, len(mti.MultiTopoIds))
 	var mtiLen uint16
@@ -928,6 +940,16 @@ func UnmarshalLsTLVServiceChaining(sc *api.LsServiceChaining) (*bgp.LsTLVService
 	}, nil
 }
 
+//AZUNYAN
+func MarshalLsTLVServiceChaining(sc *bgp.LsTLVServiceChaining) (*api.LsServiceChaining, error) {
+	return &api.LsServiceChaining{
+		Servicetype: uint32(sc.ServiceType),
+		Flags:       uint32(sc.Flags),
+		Traffictype: uint32(sc.TrafficType),
+	}, nil
+}
+//AZUNYAN
+
 func UnmarshalLsTLVOpaqueMetadata(om *api.LsOpaqueMetadata) (*bgp.LsTLVOpaqueMetadata, error) {
 	omLen := 4 + len(om.Value) // Opawue Type (2byte) + Flags (2byte) + Value (variable)
 	return &bgp.LsTLVOpaqueMetadata{
@@ -940,6 +962,18 @@ func UnmarshalLsTLVOpaqueMetadata(om *api.LsOpaqueMetadata) (*bgp.LsTLVOpaqueMet
 		Value:      om.Value,
 	}, nil
 }
+
+// AZUNYAN
+func MarshalLsTLVMultiTopoID(mti *bgp.LsTLVMultiTopoID) (*api.LsMultiTopologyIdentifier, error) {
+	multiTopoIds := make([]uint32, len(mti.MultiTopoIDs))
+	for i, v := range mti.MultiTopoIDs {
+		multiTopoIds[i] = uint32(v)
+	}
+	return &api.LsMultiTopologyIdentifier{
+		MultiTopoIds: multiTopoIds,
+	}, nil
+}
+//AZUNYAN
 
 func UnmarshalLsAttribute(a *api.LsAttribute) (*bgp.LsAttribute, error) {
 	lsAttr := &bgp.LsAttribute{
@@ -1375,6 +1409,59 @@ func MarshalNLRI(value bgp.AddrPrefixInterface) (*apb.Any, error) {
 				ProtocolId: api.LsProtocolID(n.ProtocolID),
 				Identifier: n.Identifier,
 			}
+		//AZUNYAN
+		case *bgp.LsSrv6SIDNLRI:
+			// SRv6 SIDの場合の変換
+			ln, err := MarshalLsNodeNLRI(n.LocalNodeDesc.(*bgp.LsNodeNLRI))
+			if err != nil {
+				return nil, err
+			}
+			ssi, err := MarshalLsTLVSrv6SIDInfo(n.Srv6SIDInfo.(*bgp.LsTLVSrv6SIDInfo))
+			if err != nil {
+				return nil, err
+			}
+			mti, err := MarshalLsTLVMultiTopoID(n.MultiTopoID.(*bgp.LsTLVMultiTopoID))
+			if err != nil {
+				return nil, err
+			}
+			sc, err := MarshalLsTLVServiceChaining(n.ServiceChaining.(*bgp.LsTLVServiceChaining))
+			if err != nil {
+				return nil, err
+			}
+			om, err := MarshalLsTLVOpaqueMetadata(n.OpaqueMetadata.(*bgp.LsTLVOpaqueMetadata))
+			if err != nil {
+				return nil, err
+			}
+			// Unmarshal ln to get the expected LsNodeDescriptor type
+			lnMsg, err := ln.UnmarshalNew()
+			if err != nil {
+				return nil, err
+			}
+			localNode, ok := lnMsg.(*api.LsNodeDescriptor)
+			if !ok {
+				return nil, fmt.Errorf("failed type assertion for LsNodeDescriptor")
+			}
+			// Create the SRv6 SID NLRI message with the unwrapped local node
+			srv6 := &api.LsSrv6SIDNLRI{
+				LocalNode:         localNode,
+				Srv6SidInformation: ssi,
+				MultiTopoId:        mti,
+				ServiceChaining:    sc,
+				OpaqueMetadata:     om,
+			}
+			// Wrap it into an Any message
+			srv6Any, err := apb.New(srv6)
+			if err != nil {
+				return nil, err
+			}
+			nlri = &api.LsAddrPrefix{
+				Type:       6, // LS NLRI type for SRv6 SID (IANA Assigned)
+				Length:     uint32(n.Length),
+				ProtocolId: api.LsProtocolID(n.ProtocolID),
+				Identifier: n.Identifier,
+				Nlri:       srv6Any,
+			}
+			//AZUNYAN
 		}
 	case *bgp.SRPolicyIPv4:
 		nlri = &api.SRPolicyNLRI{
@@ -1444,6 +1531,7 @@ func MarshalNLRI(value bgp.AddrPrefixInterface) (*apb.Any, error) {
 			}
 			nlri = ar
 		}
+		
 	}
 
 	an, _ := apb.New(nlri)
@@ -2788,7 +2876,17 @@ func MarshalSRSegments(segs []bgp.TunnelEncapSubTLVInterface) ([]*apb.Any, error
 	return anyList, nil
 }
 
+//AZUNYAN
 // UnmarshalSRSegments unmarshals SR Policy Segments slice of structs
+func MarshalLsTLVOpaqueMetadata(om *bgp.LsTLVOpaqueMetadata) (*api.LsOpaqueMetadata, error) {
+	return &api.LsOpaqueMetadata{
+		Opaquetype: uint32(om.OpaqueType),
+		Flags:      uint32(om.Flags),
+		Value:      om.Value,
+	}, nil
+}
+//AZUNYAN
+
 func UnmarshalSRSegments(s []*apb.Any) ([]bgp.TunnelEncapSubTLVInterface, error) {
 	if len(s) == 0 {
 		return nil, nil
