@@ -1362,7 +1362,7 @@ func parseLsLinkNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAttri
 		OspfAreaID:             0,
 		PseudoNode:             false,
 		IGPRouterID:            "",
-		BGPRouterID:            net.ParseIP(m["local-bgp-router-id"][0]),
+		BGPRouterID:            net.ParseIP(m["local-bgp-router-id"][0]).To4(),
 		BGPConfederationMember: uint32(localBgpConfederationMember),
 	}
 	RemoteAsn, err := strconv.ParseUint(m["remote-asn"][0], 10, 64)
@@ -1572,7 +1572,7 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 		OspfAreaID:             0,
 		PseudoNode:             false,
 		IGPRouterID:            "",
-		BGPRouterID:            net.ParseIP(m["local-bgp-router-id"][0]),
+		BGPRouterID:            net.ParseIP(m["local-bgp-router-id"][0]).To4(),
 		BGPConfederationMember: uint32(localBgpConfederationMember),
 	}
 	lndTLV := bgp.NewLsTLVNodeDescriptor(lnd, bgp.LS_TLV_LOCAL_NODE_DESC)
