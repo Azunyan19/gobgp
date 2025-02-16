@@ -357,10 +357,11 @@ message LsPrefixV6NLRI {
 
 message LsSrv6SIDNLRI {
     LsNodeDescriptor local_node = 1;
-    LsSrv6SIDInformation srv6_sid_information = 2;
-    LsMultiTopologyIdentifier multi_topo_id = 3;
-    LsServiceChaining service_chaining = 4;
-    LsOpaqueMetadata opaque_metadata = 5;
+    LsLocalNodeDesc local_node_desc = 2;
+    LsSrv6SIDInformation srv6_sid_information = 3;
+    LsMultiTopologyIdentifier multi_topo_id = 4;
+    LsServiceChaining service_chaining = 5;
+    LsOpaqueMetadata opaque_metadata = 6;
 }
 
 // Based om RFC 7752, Table 1.
