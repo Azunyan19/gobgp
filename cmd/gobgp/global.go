@@ -1656,7 +1656,7 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 
 	const CodeLen = 1
 	const topologyLen = 8
-	LsNLRIhdrlen := lndTLV.Len() + ssi.Len() + mti.Len() + sc.Len() + ot.Len() + topologyLen + CodeLen
+	LsNLRIhdrlen := lndTLV.Len() + mti.Len() + ssi.Len() + sc.Len() + ot.Len() + topologyLen + CodeLen
 	lsNlri := bgp.LsNLRI{
 		NLRIType:   bgp.LS_NLRI_TYPE_SRV6_SID,
 		Length:     uint16(LsNLRIhdrlen),

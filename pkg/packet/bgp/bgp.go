@@ -5957,8 +5957,8 @@ func (l *LsTLVMultiTopoID) String() string {
 type LsSrv6SIDNLRI struct {
 	LsNLRI
 	LocalNodeDesc   LsTLVInterface
-	Srv6SIDInfo     LsTLVInterface
 	MultiTopoID     LsTLVInterface
+	Srv6SIDInfo     LsTLVInterface
 	ServiceChaining LsTLVInterface // https://tools.ietf.org/html/draft-ietf-idr-bgp-ls-sr-service-segments#section-2
 	OpaqueMetadata  LsTLVInterface // https://tools.ietf.org/html/draft-ietf-idr-bgp-ls-sr-service-segments#section-2
 }
