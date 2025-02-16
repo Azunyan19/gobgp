@@ -1586,6 +1586,17 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 		SIDs: sids,
 	}
 
+	// Parse multi-topology-id values from the reserved parameters.
+	var multiTopoIDs []uint16
+	if ids, ok := m["multi-topology-id"]; ok && len(ids) > 0 {
+		for _, idStr := range ids {
+			id, err := strconv.ParseUint(idStr, 10, 16)
+			if err != nil {
+				return nil, nil, err
+			}
+			multiTopoIDs = append(multiTopoIDs, uint16(id))
+		}
+	}
 	mti := &bgp.LsTLVMultiTopoID{
 		LsTLV: bgp.LsTLV{
 			Type:   bgp.LS_TLV_MULTI_TOPO_ID,
