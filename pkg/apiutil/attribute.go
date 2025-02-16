@@ -1410,58 +1410,74 @@ func MarshalNLRI(value bgp.AddrPrefixInterface) (*apb.Any, error) {
 				Identifier: n.Identifier,
 			}
 		//AZUNYAN
-		case *bgp.LsSrv6SIDNLRI:
-			// SRv6 SIDの場合の変換
-			ln, err := MarshalLsNodeNLRI(n.LocalNodeDesc.(*bgp.LsNodeNLRI))
-			if err != nil {
-				return nil, err
-			}
-			ssi, err := MarshalLsTLVSrv6SIDInfo(n.Srv6SIDInfo.(*bgp.LsTLVSrv6SIDInfo))
-			if err != nil {
-				return nil, err
-			}
-			mti, err := MarshalLsTLVMultiTopoID(n.MultiTopoID.(*bgp.LsTLVMultiTopoID))
-			if err != nil {
-				return nil, err
-			}
-			sc, err := MarshalLsTLVServiceChaining(n.ServiceChaining.(*bgp.LsTLVServiceChaining))
-			if err != nil {
-				return nil, err
-			}
-			om, err := MarshalLsTLVOpaqueMetadata(n.OpaqueMetadata.(*bgp.LsTLVOpaqueMetadata))
-			if err != nil {
-				return nil, err
-			}
-			// Unmarshal ln to get the expected LsNodeDescriptor type
-			lnMsg, err := ln.UnmarshalNew()
-			if err != nil {
-				return nil, err
-			}
-			localNode, ok := lnMsg.(*api.LsNodeDescriptor)
-			if !ok {
-				return nil, fmt.Errorf("failed type assertion for LsNodeDescriptor")
-			}
-			// Create the SRv6 SID NLRI message with the unwrapped local node
-			srv6 := &api.LsSrv6SIDNLRI{
-				LocalNode:         localNode,
-				Srv6SidInformation: ssi,
-				MultiTopoId:        mti,
-				ServiceChaining:    sc,
-				OpaqueMetadata:     om,
-			}
-			// Wrap it into an Any message
-			srv6Any, err := apb.New(srv6)
-			if err != nil {
-				return nil, err
-			}
-			nlri = &api.LsAddrPrefix{
-				Type:       6, // LS NLRI type for SRv6 SID (IANA Assigned)
-				Length:     uint32(n.Length),
-				ProtocolId: api.LsProtocolID(n.ProtocolID),
-				Identifier: n.Identifier,
-				Nlri:       srv6Any,
-			}
-			//AZUNYAN
+	case *bgp.LsSrv6SIDNLRI:
+		// LocalNodeDesc から *bgp.LsTLVNodeDescriptor を取り出す
+		desc, ok := n.LocalNodeDesc.(*bgp.LsTLVNodeDescriptor)
+		if !ok {
+			return nil, fmt.Errorf("LocalNodeDesc is not *bgp.LsTLVNodeDescriptor")
+		}
+		// desc.Extract() で *api.LsNodeDescriptor に変換（既存のMarshalLsNodeDescriptor関数を活用）
+		ln, err := MarshalLsNodeDescriptor(desc.Extract())
+		if err != nil {
+			return nil, err
+		}
+	
+		// 各TLVフィールドの型アサーション
+		srv6info, ok := n.Srv6SIDInfo.(*bgp.LsTLVSrv6SIDInfo)
+		if !ok {
+			return nil, fmt.Errorf("Srv6SIDInfo type assertion failed")
+		}
+		ssi, err := MarshalLsTLVSrv6SIDInfo(srv6info)
+		if err != nil {
+			return nil, err
+		}
+	
+		mtid, ok := n.MultiTopoID.(*bgp.LsTLVMultiTopoID)
+		if !ok {
+			return nil, fmt.Errorf("MultiTopoID type assertion failed")
+		}
+		mti, err := MarshalLsTLVMultiTopoID(mtid)
+		if err != nil {
+			return nil, err
+		}
+	
+		sc, ok := n.ServiceChaining.(*bgp.LsTLVServiceChaining)
+		if !ok {
+			return nil, fmt.Errorf("ServiceChaining type assertion failed")
+		}
+		serviceChaining, err := MarshalLsTLVServiceChaining(sc)
+		if err != nil {
+			return nil, err
+		}
+	
+		om, ok := n.OpaqueMetadata.(*bgp.LsTLVOpaqueMetadata)
+		if !ok {
+			return nil, fmt.Errorf("OpaqueMetadata type assertion failed")
+		}
+		opaqueMetadata, err := MarshalLsTLVOpaqueMetadata(om)
+		if err != nil {
+			return nil, err
+		}
+	
+		srv6 := &api.LsSrv6SIDNLRI{
+			LocalNode:         ln, // ln は *api.LsNodeDescriptor 型
+			Srv6SidInformation: ssi,
+			MultiTopoId:        mti,
+			ServiceChaining:    serviceChaining,
+			OpaqueMetadata:     opaqueMetadata,
+		}
+		// srv6 を *anypb.Any に変換
+        anySrv6, err := apb.New(srv6)
+        if err != nil {
+            return nil, err
+        }
+		nlri = &api.LsAddrPrefix{
+			Type:       6, // IANA Assined Number for SRv6 SID NLRI
+			Length:     uint32(n.Length),
+			ProtocolId: api.LsProtocolID(n.ProtocolID),
+			Identifier: n.Identifier,
+			Nlri:       anySrv6,
+		}
 		}
 	case *bgp.SRPolicyIPv4:
 		nlri = &api.SRPolicyNLRI{
