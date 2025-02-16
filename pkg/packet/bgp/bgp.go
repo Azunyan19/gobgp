@@ -6029,7 +6029,6 @@ func (l *LsSrv6SIDNLRI) DecodeFromBytes(data []byte) error {
 			return malformedAttrListErr("Required TLV missing")
 		}
 	}
-
 	return nil
 }
 
