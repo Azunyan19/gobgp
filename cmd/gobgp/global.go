@@ -1654,6 +1654,34 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 		TLVs: tlvs,
 	}
 
+	// TLV の GetType() で取得できる型番号に基づいて昇順にソートする
+	sort.Slice(tlvs, func(i, j int) bool {
+		var typeI, typeJ uint8
+
+		switch v := tlvs[i].(type) {
+		case *bgp.LsTLVPeerNodeSID:
+			typeI = uint8(v.Type)
+		case *bgp.LsTLVAdjacencySID:
+			typeI = uint8(v.Type)
+		case *bgp.LsTLVPeerSetSID:
+			typeI = uint8(v.Type)
+		default:
+			typeI = 0
+		}
+
+		switch v := tlvs[j].(type) {
+		case *bgp.LsTLVPeerNodeSID:
+			typeJ = uint8(v.Type)
+		case *bgp.LsTLVAdjacencySID:
+			typeJ = uint8(v.Type)
+		case *bgp.LsTLVPeerSetSID:
+			typeJ = uint8(v.Type)
+		default:
+			typeJ = 0
+		}
+
+		return typeI < typeJ
+	})
 	const CodeLen = 1
 	const topologyLen = 8
 	LsNLRIhdrlen := lndTLV.Len() + mti.Len() + ssi.Len() + sc.Len() + ot.Len() + topologyLen + CodeLen
