@@ -19,6 +19,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/netip"
 
@@ -1945,7 +1946,7 @@ func UnmarshalNLRI(rf bgp.RouteFamily, an *apb.Any) (bgp.AddrPrefixInterface, er
 	if nlri == nil {
 		return nil, fmt.Errorf("invalid nlri for %s family: %s", rf.String(), value)
 	}
-	fmt.Printf("\nUnmarshaled NLRI: %+v\n", nlri)
+	log.Printf("\nUnmarshaled NLRI: %+v\n", nlri)
 	return nlri, nil
 }
 

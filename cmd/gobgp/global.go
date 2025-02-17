@@ -1675,8 +1675,6 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 			OpaqueMetadata:  ot,
 		},
 	}
-	// Inside the NLRI decode function (for debugging only)
-	fmt.Printf("\nReceived NLRI: %+v\n", nlri)
 	return nlri, pathAttributeLs, nil
 }
 
