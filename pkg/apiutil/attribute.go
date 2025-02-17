@@ -1556,7 +1556,6 @@ func MarshalNLRI(value bgp.AddrPrefixInterface) (*apb.Any, error) {
 
 func MarshalNLRIs(values []bgp.AddrPrefixInterface) ([]*apb.Any, error) {
 	nlris := make([]*apb.Any, 0, len(values))
-	//fmt.Printf("nlris: %s\n", nlris)
 	for _, value := range values {
 		nlri, err := MarshalNLRI(value)
 		if err != nil {
@@ -1946,7 +1945,7 @@ func UnmarshalNLRI(rf bgp.RouteFamily, an *apb.Any) (bgp.AddrPrefixInterface, er
 	if nlri == nil {
 		return nil, fmt.Errorf("invalid nlri for %s family: %s", rf.String(), value)
 	}
-
+	fmt.Printf("\nUnmarshaled NLRI: %+v\n", nlri)
 	return nlri, nil
 }
 
