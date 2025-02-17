@@ -1564,7 +1564,7 @@ func MarshalNLRIs(values []bgp.AddrPrefixInterface) ([]*apb.Any, error) {
 		}
 		nlris = append(nlris, nlri)
 	}
-	fmt.Printf("nlris after marshal: %v\n", nlris)
+	fmt.Printf("\nnlris after marshal: %v\n", nlris)
 	return nlris, nil
 }
 
@@ -1900,12 +1900,12 @@ func UnmarshalNLRI(rf bgp.RouteFamily, an *apb.Any) (bgp.AddrPrefixInterface, er
 			}
 			lndTLV := bgp.NewLsTLVNodeDescriptor(lnd, bgp.LS_TLV_LOCAL_NODE_DESC)
 
-			ssiTLV, err := UnmarshalLsTLVSrv6SIDInfo(tp.Srv6SidInformation)
+			mtiTLV, err := UnmarshalLsTLVMultiTopoID(tp.MultiTopoId)
 			if err != nil {
 				return nil, err
 			}
 
-			mtiTLV, err := UnmarshalLsTLVMultiTopoID(tp.MultiTopoId)
+			ssiTLV, err := UnmarshalLsTLVSrv6SIDInfo(tp.Srv6SidInformation)
 			if err != nil {
 				return nil, err
 			}
@@ -1925,8 +1925,8 @@ func UnmarshalNLRI(rf bgp.RouteFamily, an *apb.Any) (bgp.AddrPrefixInterface, er
 				Length: uint16(v.Length),
 				NLRI: &bgp.LsSrv6SIDNLRI{
 					LocalNodeDesc:   &lndTLV,
-					Srv6SIDInfo:     ssiTLV,
 					MultiTopoID:     mtiTLV,
+					Srv6SIDInfo:     ssiTLV,
 					ServiceChaining: scTLV,
 					OpaqueMetadata:  omTLV,
 					LsNLRI: bgp.LsNLRI{
@@ -2845,6 +2845,7 @@ func UnmarshalSRBSID(bsid *apb.Any) (bgp.TunnelEncapSubTLVInterface, error) {
 	}
 }
 
+//AZUNYAN
 // MarshalSRSegments marshals a slice of SR Policy Segment List
 func MarshalSRSegments(segs []bgp.TunnelEncapSubTLVInterface) ([]*apb.Any, error) {
 	anyList := make([]*apb.Any, 0, len(segs))
@@ -2892,7 +2893,6 @@ func MarshalSRSegments(segs []bgp.TunnelEncapSubTLVInterface) ([]*apb.Any, error
 	return anyList, nil
 }
 
-//AZUNYAN
 // UnmarshalSRSegments unmarshals SR Policy Segments slice of structs
 func MarshalLsTLVOpaqueMetadata(om *bgp.LsTLVOpaqueMetadata) (*api.LsOpaqueMetadata, error) {
 	return &api.LsOpaqueMetadata{
