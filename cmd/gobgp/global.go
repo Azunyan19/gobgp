@@ -1661,34 +1661,50 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 
 	// TLV の GetType() で取得できる型番号に基づいて昇順にソートする
 	sort.Slice(tlvs, func(i, j int) bool {
-		var typeI, typeJ uint8
-		switch v := tlvs[i].(type) {
+		var orderI, orderJ uint8
+		switch tlv := tlvs[i].(type) {
 		case *bgp.LsTLVPeerNodeSID:
-			typeI = uint8(v.Type)
+			orderI = uint8(tlv.Type)
 		case *bgp.LsTLVAdjacencySID:
-			typeI = uint8(v.Type)
+			orderI = uint8(tlv.Type)
 		case *bgp.LsTLVPeerSetSID:
-			typeI = uint8(v.Type)
+			orderI = uint8(tlv.Type)
 		case *bgp.LsTLVNodeDescriptor:
-			// Local Node Descriptor の TLV 型は仕様上最小の値に相当するように設定
-			typeI = 1
+			orderI = 1 // Local Node Descriptorを最優先
+		case *bgp.LsTLVMultiTopoID:
+			orderI = 2
+		case *bgp.LsTLVSrv6SIDInfo:
+			orderI = 3
+		case *bgp.LsTLVServiceChaining:
+			orderI = 4
+		case *bgp.LsTLVOpaqueMetadata:
+			orderI = 5
 		default:
-			typeI = 0
+			orderI = 0
 		}
-		switch v := tlvs[j].(type) {
+		switch tlv := tlvs[j].(type) {
 		case *bgp.LsTLVPeerNodeSID:
-			typeJ = uint8(v.Type)
+			orderJ = uint8(tlv.Type)
 		case *bgp.LsTLVAdjacencySID:
-			typeJ = uint8(v.Type)
+			orderJ = uint8(tlv.Type)
 		case *bgp.LsTLVPeerSetSID:
-			typeJ = uint8(v.Type)
+			orderJ = uint8(tlv.Type)
 		case *bgp.LsTLVNodeDescriptor:
-			typeJ = 1
+			orderJ = 1
+		case *bgp.LsTLVMultiTopoID:
+			orderJ = 2
+		case *bgp.LsTLVSrv6SIDInfo:
+			orderJ = 3
+		case *bgp.LsTLVServiceChaining:
+			orderJ = 4
+		case *bgp.LsTLVOpaqueMetadata:
+			orderJ = 5
 		default:
-			typeJ = 0
+			orderJ = 0
 		}
-		return typeI < typeJ
+		return orderI < orderJ
 	})
+	
 	// NLRI ヘッダ長を計算する（例: lndTLV, mti, ssi, sc, ot それぞれの長さの合計＋固定長）
 	const CodeLen = 1
 	const topologyLen = 8
