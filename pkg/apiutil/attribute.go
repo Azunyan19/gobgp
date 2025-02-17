@@ -1946,7 +1946,6 @@ func UnmarshalNLRI(rf bgp.RouteFamily, an *apb.Any) (bgp.AddrPrefixInterface, er
 	if nlri == nil {
 		return nil, fmt.Errorf("invalid nlri for %s family: %s", rf.String(), value)
 	}
-	log.Printf("\nUnmarshaled NLRI: %+v\n", nlri)
 	return nlri, nil
 }
 

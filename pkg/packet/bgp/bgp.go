@@ -9203,7 +9203,8 @@ func (l *LsTLVNodeDescriptor) DecodeFromBytes(data []byte) error {
 		}
 
 		if uint16(sub.Type) < prevType {
-			return malformedAttrListErr("Incorrect TLV order")
+			//return malformedAttrListErr("Incorrect TLV order")
+			return malformedAttrListErr(fmt.Sprintf("Incorrect TLV order; NLRI bytes: %v", tlv))
 		}
 		if _, ok := m[sub.Type]; ok {
 			return malformedAttrListErr("Duplicate TLV")
