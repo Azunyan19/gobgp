@@ -6022,7 +6022,7 @@ func (l *LsSrv6SIDNLRI) DecodeFromBytes(data []byte) error {
 			return malformedAttrListErr("Required TLV missing")
 		}
 	}
-
+	fmt.Printf("\nDecoded LS SRv6 SID NLRI: %+v\n", l)
 	return nil
 }
 
