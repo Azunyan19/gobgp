@@ -1643,6 +1643,11 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 	const t = bgp.BGP_ATTR_TYPE_LS
 	const pathAttrHdrLen = 4
 	var tlvs []bgp.LsTLVInterface
+	tlvs = append(tlvs, &lndTLV)
+	tlvs = append(tlvs, mti)
+	tlvs = append(tlvs, ssi)
+	tlvs = append(tlvs, sc)
+	tlvs = append(tlvs, ot)
 	length := uint16(pathAttrHdrLen + lsTlvLen)
 
 	pathAttributeLs := &bgp.PathAttributeLs{
