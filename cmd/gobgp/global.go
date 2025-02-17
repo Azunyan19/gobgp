@@ -1657,7 +1657,6 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 	// TLV の GetType() で取得できる型番号に基づいて昇順にソートする
 	sort.Slice(tlvs, func(i, j int) bool {
 		var typeI, typeJ uint8
-
 		switch v := tlvs[i].(type) {
 		case *bgp.LsTLVPeerNodeSID:
 			typeI = uint8(v.Type)
@@ -1665,10 +1664,12 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 			typeI = uint8(v.Type)
 		case *bgp.LsTLVPeerSetSID:
 			typeI = uint8(v.Type)
+		case *bgp.LsTLVNodeDescriptor:
+			// Local Node Descriptor の TLV 型は仕様上最小の値に相当するように設定
+			typeI = 1
 		default:
 			typeI = 0
 		}
-
 		switch v := tlvs[j].(type) {
 		case *bgp.LsTLVPeerNodeSID:
 			typeJ = uint8(v.Type)
@@ -1676,12 +1677,14 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 			typeJ = uint8(v.Type)
 		case *bgp.LsTLVPeerSetSID:
 			typeJ = uint8(v.Type)
+		case *bgp.LsTLVNodeDescriptor:
+			typeJ = 1
 		default:
 			typeJ = 0
 		}
-
 		return typeI < typeJ
 	})
+	// NLRI ヘッダ長を計算する（例: lndTLV, mti, ssi, sc, ot それぞれの長さの合計＋固定長）
 	const CodeLen = 1
 	const topologyLen = 8
 	LsNLRIhdrlen := lndTLV.Len() + mti.Len() + ssi.Len() + sc.Len() + ot.Len() + topologyLen + CodeLen
@@ -1695,7 +1698,7 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 		Type:   bgp.LS_NLRI_TYPE_SRV6_SID,
 		Length: 4,
 		NLRI: &bgp.LsSrv6SIDNLRI{
-			LsNLRI:          lsNlri,
+			LsNLRI: lsNlri,
 			LocalNodeDesc:   &lndTLV,
 			MultiTopoID:     mti,
 			Srv6SIDInfo:     ssi,
