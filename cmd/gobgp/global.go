@@ -1704,7 +1704,7 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 		Length: 4,
 		NLRI: &bgp.LsSrv6SIDNLRI{
 			LsNLRI: lsNlri,
-			LocalNode:   &lndTLV,
+			LocalNodeDesc:   &lndTLV,
 			MultiTopoID:     mti,
 			Srv6SIDInfo:     ssi,
 			ServiceChaining: sc,
