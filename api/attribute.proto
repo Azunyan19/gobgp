@@ -356,7 +356,7 @@ message LsPrefixV6NLRI {
 // TODO: LsSrPolicyiCandidatePathNLRI
 
 message LsSrv6SIDNLRI {
-    LsNodeDescriptor local_node = 1;
+    LsNodeDescriptor local_node_desc = 1;
     LsSrv6SIDInformation srv6_sid_information = 2;
     LsMultiTopologyIdentifier multi_topo_id = 3;
     LsServiceChaining service_chaining = 4;
