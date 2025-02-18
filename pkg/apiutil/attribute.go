@@ -16,11 +16,13 @@
 package apiutil
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
 	"net/netip"
+	"sort"
 
 	"google.golang.org/protobuf/proto"
 	apb "google.golang.org/protobuf/types/known/anypb"
@@ -1946,6 +1948,64 @@ func UnmarshalNLRI(rf bgp.RouteFamily, an *apb.Any) (bgp.AddrPrefixInterface, er
 		return nil, fmt.Errorf("invalid nlri for %s family: %s", rf.String(), value)
 	}
 	return nlri, nil
+}
+
+type TLV struct {
+    Type   uint8
+    Length uint8
+    Value  []byte
+}
+
+// parseTLVsは生データからTLVのスライスを抽出します
+func parseTLVs(data []byte) ([]TLV, error) {
+    var tlvs []TLV
+    for len(data) >= 2 {
+        tlvType := data[0]
+        tlvLen := data[1]
+        if len(data) < int(2+tlvLen) {
+            return nil, fmt.Errorf("insufficient data for TLV")
+        }
+        tlvValue := data[2 : 2+tlvLen]
+        tlvs = append(tlvs, TLV{Type: tlvType, Length: tlvLen, Value: tlvValue})
+        data = data[2+tlvLen:]
+    }
+    return tlvs, nil
+}
+
+// expectedOrderではTLVの順序を定義します（例）
+func expectedOrder(t TLV) uint8 {
+    switch t.Type {
+    case 1:
+        return 1 // local_node
+    case 2:
+        return 2 // srv6_sid_information
+    case 3:
+        return 3 // multi_topo_id
+    case 4:
+        return 4 // service_chaining
+    case 5:
+        return 5 // opaque_metadata
+    default:
+        return 255
+    }
+}
+
+// canonicalizeLsSrv6SIDNLRIはTLVを期待順に並べ替え、再シリアライズします
+func canonicalizeLsSrv6SIDNLRI(raw []byte) ([]byte, error) {
+    tlvs, err := parseTLVs(raw)
+    if err != nil {
+        return nil, err
+    }
+    sort.SliceStable(tlvs, func(i, j int) bool {
+        return expectedOrder(tlvs[i]) < expectedOrder(tlvs[j])
+    })
+    var buf bytes.Buffer
+    for _, t := range tlvs {
+        buf.WriteByte(t.Type)
+        buf.WriteByte(t.Length)
+        buf.Write(t.Value)
+    }
+    return buf.Bytes(), nil
 }
 
 func UnmarshalNLRIs(rf bgp.RouteFamily, values []*apb.Any) ([]bgp.AddrPrefixInterface, error) {
