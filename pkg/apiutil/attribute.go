@@ -1413,70 +1413,52 @@ func MarshalNLRI(value bgp.AddrPrefixInterface) (*apb.Any, error) {
 			}
 		//AZUNYAN
 	case *bgp.LsSrv6SIDNLRI:
-		// LocalNodeDesc から *bgp.LsTLVNodeDescriptor を取り出す
-		desc, ok := n.LocalNodeDesc.(*bgp.LsTLVNodeDescriptor)
-		if !ok {
-			return nil, fmt.Errorf("LocalNodeDesc is not *bgp.LsTLVNodeDescriptor")
-		}
-		// desc.Extract() で *api.LsNodeDescriptor に変換（既存のMarshalLsNodeDescriptor関数を活用）
-		ln, err := MarshalLsNodeDescriptor(desc.Extract())
+		// LocalNodeDescからTLVNodeを抽出し、API型のLocalNodeを生成
+		ln, err := MarshalLsNodeDescriptor(v.NLRI.(*bgp.LsSrv6SIDNLRI).LocalNodeDesc.(*bgp.LsTLVNodeDescriptor).Extract())
 		if err != nil {
 			return nil, err
 		}
-	
-		// 各TLVフィールドの型アサーション
-		srv6info, ok := n.Srv6SIDInfo.(*bgp.LsTLVSrv6SIDInfo)
+		srv6Info, ok := v.NLRI.(*bgp.LsSrv6SIDNLRI).Srv6SIDInfo.(*bgp.LsTLVSrv6SIDInfo)
 		if !ok {
-			return nil, fmt.Errorf("Srv6SIDInfo type assertion failed")
+			return nil, fmt.Errorf("invalid SRv6 SID info type")
 		}
-		ssi, err := MarshalLsTLVSrv6SIDInfo(srv6info)
+		ssi, err := MarshalLsTLVSrv6SIDInfo(srv6Info)
 		if err != nil {
 			return nil, err
 		}
-	
-		mtid, ok := n.MultiTopoID.(*bgp.LsTLVMultiTopoID)
-		if !ok {
-			return nil, fmt.Errorf("MultiTopoID type assertion failed")
-		}
-		mti, err := MarshalLsTLVMultiTopoID(mtid)
+		mti, err := MarshalLsTLVMultiTopoID(v.NLRI.(*bgp.LsSrv6SIDNLRI).MultiTopoID.(*bgp.LsTLVMultiTopoID))
 		if err != nil {
 			return nil, err
 		}
-	
-		sc, ok := n.ServiceChaining.(*bgp.LsTLVServiceChaining)
+		sc, ok := v.NLRI.(*bgp.LsSrv6SIDNLRI).ServiceChaining.(*bgp.LsTLVServiceChaining)
 		if !ok {
-			return nil, fmt.Errorf("ServiceChaining type assertion failed")
+			return nil, fmt.Errorf("invalid service chaining type")
 		}
 		serviceChaining, err := MarshalLsTLVServiceChaining(sc)
 		if err != nil {
 			return nil, err
 		}
-	
-		om, ok := n.OpaqueMetadata.(*bgp.LsTLVOpaqueMetadata)
-		if !ok {
-			return nil, fmt.Errorf("OpaqueMetadata type assertion failed")
-		}
-		opaqueMetadata, err := MarshalLsTLVOpaqueMetadata(om)
+		opaqueMetadata, err := MarshalLsTLVOpaqueMetadata(v.NLRI.(*bgp.LsSrv6SIDNLRI).OpaqueMetadata.(*bgp.LsTLVOpaqueMetadata))
 		if err != nil {
 			return nil, err
 		}
 	
+		// API側のLS SRv6 SID NLRIに正しくLocalNode情報をセット
 		srv6 := &api.LsSrv6SIDNLRI{
-			LocalNode:         ln, // ln は *api.LsNodeDescriptor 型
+			LocalNode:         ln, // ここに生成済みのAPI型LocalNodeをセット
 			Srv6SidInformation: ssi,
 			MultiTopoId:        mti,
 			ServiceChaining:    serviceChaining,
 			OpaqueMetadata:     opaqueMetadata,
 		}
-		// srv6 を *anypb.Any に変換
-        anySrv6, err := apb.New(srv6)
-        if err != nil {
-            return nil, err
-        }
+		anySrv6, err := apb.New(srv6)
+		if err != nil {
+			return nil, err
+		}
 		nlri = &api.LsAddrPrefix{
-			Type:       6, // IANA Assined Number for SRv6 SID NLRI
-			Length:     uint32(n.Length),
-			ProtocolId: api.LsProtocolID(n.ProtocolID),
+			Type:       api.LsNLRIType(5),
+			Length:     uint32(v.Length), // 必要に応じて再計算
+			ProtocolId: 7, // 7: BGP-LS
 			Identifier: n.Identifier,
 			Nlri:       anySrv6,
 		}
@@ -1802,7 +1784,6 @@ func UnmarshalNLRI(rf bgp.RouteFamily, an *apb.Any) (bgp.AddrPrefixInterface, er
 						NLRIType:   bgp.LsNLRIType(v.Type),
 						Length:     uint16(v.Length),
 						ProtocolID: bgp.LsProtocolID(v.ProtocolId),
-						Identifier: v.Identifier,
 					},
 				},
 			}
