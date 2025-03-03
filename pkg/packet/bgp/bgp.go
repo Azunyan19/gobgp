@@ -9536,6 +9536,7 @@ func (l *LsAddrPrefix) Serialize(options ...*MarshallingOption) ([]byte, error) 
 	if l.NLRI == nil {
 		return nil, errors.New("empty NLRI")
 	}
+	fmt.Printf("\nNLRI: %v\n", l.NLRI)
 
 	ser, err := l.NLRI.Serialize()
 	if err != nil {
