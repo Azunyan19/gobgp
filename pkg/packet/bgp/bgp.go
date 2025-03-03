@@ -9517,6 +9517,7 @@ func (l *LsAddrPrefix) DecodeFromBytes(data []byte, options ...*MarshallingOptio
 	case LS_NLRI_TYPE_SRV6_SID:
 		srv6sid := &LsSrv6SIDNLRI{}
 		srv6sid.Length = l.Length
+		fmt.Printf("\nsrv6sid.length: %v\n", l.Length)
 		srv6sid.NLRIType = LS_NLRI_TYPE_SRV6_SID
 		l.NLRI = srv6sid
 
