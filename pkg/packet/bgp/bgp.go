@@ -5965,10 +5965,12 @@ type LsSrv6SIDNLRI struct {
 
 func (l *LsSrv6SIDNLRI) String() string {
 	local := l.LocalNodeDesc.(*LsTLVNodeDescriptor).Extract()
-	srv6SID := l.Srv6SIDInfo.(*LsTLVSrv6SIDInfo)
 	multiTopo := l.MultiTopoID.(*LsTLVMultiTopoID)
+	srv6SID := l.Srv6SIDInfo.(*LsTLVSrv6SIDInfo)
+	serviceChaining := l.ServiceChaining.(*LsTLVServiceChaining)
+	opaqueMetadata := l.OpaqueMetadata.(*LsTLVOpaqueMetadata)
 
-	return fmt.Sprintf("SRv6SID { LOCAL_NODE: %s SRv6SID: %v MultiTopo: %v}", local.IGPRouterID, srv6SID.String(), multiTopo.String())
+	return fmt.Sprintf("SRv6SID { LOCAL_NODE: %s MultiTopo: %v SRv6SID: %v ServiceChaining: %v, OpaqueMetadata: %v}", local.IGPRouterID, multiTopo.String(), srv6SID.String(), serviceChaining.String(), opaqueMetadata.String())
 }
 
 func (l *LsSrv6SIDNLRI) DecodeFromBytes(data []byte) error {
