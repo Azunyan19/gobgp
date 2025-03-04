@@ -899,6 +899,16 @@ func UnmarshalLsTLVSrv6SIDInfo(ssi *api.LsSrv6SIDInformation) (*bgp.LsTLVSrv6SID
 	}, nil
 }
 
+func MarshalLsTLVSrv6SIDInfo(info *bgp.LsTLVSrv6SIDInfo) (*api.LsSrv6SIDInformation, error) {
+	sids := make([]string, len(info.SIDs))
+	for i, ip := range info.SIDs {
+		sids[i] = ip.String()
+	}
+	return &api.LsSrv6SIDInformation{
+		Sids: sids,
+	}, nil
+}
+
 func UnmarshalLsTLVMultiTopoID(mti *api.LsMultiTopologyIdentifier) (*bgp.LsTLVMultiTopoID, error) {
 	multiTopoIDs := make([]uint16, len(mti.MultiTopoIds))
 	var mtiLen uint16
@@ -938,6 +948,16 @@ func UnmarshalLsTLVOpaqueMetadata(om *api.LsOpaqueMetadata) (*bgp.LsTLVOpaqueMet
 		OpaqueType: uint16(om.Opaquetype),
 		Flags:      uint8(om.Flags),
 		Value:      om.Value,
+	}, nil
+}
+
+func MarshalLsTLVMultiTopoID(mti *bgp.LsTLVMultiTopoID) (*api.LsMultiTopologyIdentifier, error) {
+	multiTopoIds := make([]uint32, len(mti.MultiTopoIDs))
+	for i, v := range mti.MultiTopoIDs {
+		multiTopoIds[i] = uint32(v)
+	}
+	return &api.LsMultiTopologyIdentifier{
+		MultiTopoIds: multiTopoIds,
 	}, nil
 }
 
@@ -1374,6 +1394,54 @@ func MarshalNLRI(value bgp.AddrPrefixInterface) (*apb.Any, error) {
 				Length:     uint32(n.Length),
 				ProtocolId: api.LsProtocolID(n.ProtocolID),
 				Identifier: n.Identifier,
+			}
+		case *bgp.LsSrv6SIDNLRI:
+			// LocalNodeDesc から *bgp.LsTLVNodeDescriptor を取り出す
+			desc, ok := n.LocalNodeDesc.(*bgp.LsTLVNodeDescriptor)
+			if !ok {
+				return nil, fmt.Errorf("LocalNodeDesc is not *bgp.LsTLVNodeDescriptor")
+			}
+			// desc.Extract() で *api.LsNodeDescriptor に変換（既存のMarshalLsNodeDescriptor関数を活用）
+			ln, err := MarshalLsNodeDescriptor(desc.Extract())
+			if err != nil {
+				return nil, err
+			}
+
+			// 各TLVフィールドの型アサーション
+			srv6info, ok := n.Srv6SIDInfo.(*bgp.LsTLVSrv6SIDInfo)
+			if !ok {
+				return nil, fmt.Errorf("Srv6SIDInfo type assertion failed")
+			}
+			ssi, err := MarshalLsTLVSrv6SIDInfo(srv6info)
+			if err != nil {
+				return nil, err
+			}
+
+			mtid, ok := n.MultiTopoID.(*bgp.LsTLVMultiTopoID)
+			if !ok {
+				return nil, fmt.Errorf("MultiTopoID type assertion failed")
+			}
+			mti, err := MarshalLsTLVMultiTopoID(mtid)
+			if err != nil {
+				return nil, err
+			}
+
+			srv6 := &api.LsSrv6SIDNLRI{
+				LocalNode:          ln, // ln は *api.LsNodeDescriptor 型
+				Srv6SidInformation: ssi,
+				MultiTopoId:        mti,
+			}
+			// srv6 を *anypb.Any に変換
+			anySrv6, err := apb.New(srv6)
+			if err != nil {
+				return nil, err
+			}
+			nlri = &api.LsAddrPrefix{
+				Type:       6, // IANA Assined Number for SRv6 SID NLRI
+				Length:     uint32(n.Length),
+				ProtocolId: api.LsProtocolID(n.ProtocolID),
+				Identifier: n.Identifier,
+				Nlri:       anySrv6,
 			}
 		}
 	case *bgp.SRPolicyIPv4:
@@ -2738,7 +2806,6 @@ func UnmarshalSRBSID(bsid *apb.Any) (bgp.TunnelEncapSubTLVInterface, error) {
 	}
 }
 
-// AZUNYAN
 // MarshalSRSegments marshals a slice of SR Policy Segment List
 func MarshalSRSegments(segs []bgp.TunnelEncapSubTLVInterface) ([]*apb.Any, error) {
 	anyList := make([]*apb.Any, 0, len(segs))
