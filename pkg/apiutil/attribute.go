@@ -938,6 +938,17 @@ func UnmarshalLsTLVServiceChaining(sc *api.LsServiceChaining) (*bgp.LsTLVService
 	}, nil
 }
 
+// AZUNYAN
+func MarshalLsTLVServiceChaining(sc *bgp.LsTLVServiceChaining) (*api.LsServiceChaining, error) {
+	return &api.LsServiceChaining{
+		Servicetype: uint32(sc.ServiceType),
+		Flags:       uint32(sc.Flags),
+		Traffictype: uint32(sc.TrafficType),
+	}, nil
+}
+
+//AZUNYAN
+
 func UnmarshalLsTLVOpaqueMetadata(om *api.LsOpaqueMetadata) (*bgp.LsTLVOpaqueMetadata, error) {
 	omLen := 4 + len(om.Value) // Opaque Type (2byte) + Flags (2byte) + Value (variable)
 	return &bgp.LsTLVOpaqueMetadata{
@@ -1426,10 +1437,30 @@ func MarshalNLRI(value bgp.AddrPrefixInterface) (*apb.Any, error) {
 				return nil, err
 			}
 
+			sc, ok := n.ServiceChaining.(*bgp.LsTLVServiceChaining)
+			if !ok {
+				return nil, fmt.Errorf("ServiceChaining type assertion failed")
+			}
+			serviceChaining, err := MarshalLsTLVServiceChaining(sc)
+			if err != nil {
+				return nil, err
+			}
+
+			om, ok := n.OpaqueMetadata.(*bgp.LsTLVOpaqueMetadata)
+			if !ok {
+				return nil, fmt.Errorf("OpaqueMetadata type assertion failed")
+			}
+			opaqueMetadata, err := MarshalLsTLVOpaqueMetadata(om)
+			if err != nil {
+				return nil, err
+			}
+
 			srv6 := &api.LsSrv6SIDNLRI{
 				LocalNode:          ln, // ln は *api.LsNodeDescriptor 型
 				Srv6SidInformation: ssi,
 				MultiTopoId:        mti,
+				ServiceChaining:    serviceChaining,
+				OpaqueMetadata:     opaqueMetadata,
 			}
 			// srv6 を *anypb.Any に変換
 			anySrv6, err := apb.New(srv6)
@@ -1512,6 +1543,7 @@ func MarshalNLRI(value bgp.AddrPrefixInterface) (*apb.Any, error) {
 			}
 			nlri = ar
 		}
+
 	}
 
 	an, _ := apb.New(nlri)
@@ -2853,7 +2885,18 @@ func MarshalSRSegments(segs []bgp.TunnelEncapSubTLVInterface) ([]*apb.Any, error
 	return anyList, nil
 }
 
+// AZUNYAN
 // UnmarshalSRSegments unmarshals SR Policy Segments slice of structs
+func MarshalLsTLVOpaqueMetadata(om *bgp.LsTLVOpaqueMetadata) (*api.LsOpaqueMetadata, error) {
+	return &api.LsOpaqueMetadata{
+		Opaquetype: uint32(om.OpaqueType),
+		Flags:      uint32(om.Flags),
+		Value:      om.Value,
+	}, nil
+}
+
+//AZUNYAN
+
 func UnmarshalSRSegments(s []*apb.Any) ([]bgp.TunnelEncapSubTLVInterface, error) {
 	if len(s) == 0 {
 		return nil, nil
