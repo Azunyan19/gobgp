@@ -980,8 +980,6 @@ func UnmarshalLsTLVServiceChaining(sc *api.LsServiceChaining) (*bgp.LsTLVService
 	}, nil
 }
 
-// AZUNYAN
-// AZUNYAN
 func MarshalLsTLVServiceChaining(sc *bgp.LsTLVServiceChaining) (*api.LsServiceChaining, error) {
 	return &api.LsServiceChaining{
 		Servicetype: uint32(sc.ServiceType),
@@ -989,8 +987,6 @@ func MarshalLsTLVServiceChaining(sc *bgp.LsTLVServiceChaining) (*api.LsServiceCh
 		Traffictype: uint32(sc.TrafficType),
 	}, nil
 }
-
-//AZUNYAN
 
 func UnmarshalLsTLVOpaqueMetadata(om *api.LsOpaqueMetadata) (*bgp.LsTLVOpaqueMetadata, error) {
 	omLen := 4 + len(om.Value) // Opaque Type (2byte) + Flags (2byte) + Value (variable)
@@ -2872,7 +2868,6 @@ func MarshalSRSegments(segs []bgp.TunnelEncapSubTLVInterface) ([]*apb.Any, error
 	return anyList, nil
 }
 
-// AZUNYAN
 // UnmarshalSRSegments unmarshals SR Policy Segments slice of structs
 func MarshalLsTLVOpaqueMetadata(om *bgp.LsTLVOpaqueMetadata) (*api.LsOpaqueMetadata, error) {
 	return &api.LsOpaqueMetadata{
@@ -2881,8 +2876,6 @@ func MarshalLsTLVOpaqueMetadata(om *bgp.LsTLVOpaqueMetadata) (*api.LsOpaqueMetad
 		Value:      om.Value,
 	}, nil
 }
-
-//AZUNYAN
 
 func UnmarshalSRSegments(s []*apb.Any) ([]bgp.TunnelEncapSubTLVInterface, error) {
 	if len(s) == 0 {
