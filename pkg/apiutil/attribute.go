@@ -786,6 +786,48 @@ func MarshalLsPrefixV6NLRI(n *bgp.LsPrefixV6NLRI) (*apb.Any, error) {
 	return a, nil
 }
 
+func MarshalLsSRv6SIDNLRI(n *bgp.LsSrv6SIDNLRI) (*apb.Any, error) {
+	ln, err := MarshalLsNodeDescriptor(n.LocalNodeDesc.(*bgp.LsTLVNodeDescriptor).Extract())
+	if err != nil {
+		return nil, err
+	}
+	srv6Info, ok := n.Srv6SIDInfo.(*bgp.LsTLVSrv6SIDInfo)
+	if !ok {
+		return nil, fmt.Errorf("invalid SRv6 SID info type")
+	}
+	ssi, err := MarshalLsTLVSrv6SIDInfo(srv6Info)
+	if err != nil {
+		return nil, err
+	}
+	mti, err := MarshalLsTLVMultiTopoID(n.MultiTopoID.(*bgp.LsTLVMultiTopoID))
+	if err != nil {
+		return nil, err
+	}
+	sc, ok := n.ServiceChaining.(*bgp.LsTLVServiceChaining)
+	if !ok {
+		return nil, fmt.Errorf("invalid service chaining type")
+	}
+	serviceChaining, err := MarshalLsTLVServiceChaining(sc)
+	if err != nil {
+		return nil, err
+	}
+	opaqueMetadata, err := MarshalLsTLVOpaqueMetadata(n.OpaqueMetadata.(*bgp.LsTLVOpaqueMetadata))
+	if err != nil {
+		return nil, err
+	}
+
+	srv6sid := &api.LsSrv6SIDNLRI{
+		LocalNode:          ln,
+		Srv6SidInformation: ssi,
+		MultiTopoId:        mti,
+		ServiceChaining:    serviceChaining,
+		OpaqueMetadata:     opaqueMetadata,
+	}
+	a, _ := apb.New(srv6sid)
+
+	return a, nil
+}
+
 func MarshalLsBgpPeerSegmentSid(n *bgp.LsBgpPeerSegmentSID) (*api.LsBgpPeerSegmentSID, error) {
 	flags := &api.LsBgpPeerSegmentSIDFlags{
 		Value:      n.Flags.Value,
@@ -1407,56 +1449,19 @@ func MarshalNLRI(value bgp.AddrPrefixInterface) (*apb.Any, error) {
 				ProtocolId: api.LsProtocolID(n.ProtocolID),
 				Identifier: n.Identifier,
 			}
-		case *bgp.LsSrv6SIDNLRI:
-			// LocalNodeDescからTLVNodeを抽出し、API型のLocalNodeを生成
-			ln, err := MarshalLsNodeDescriptor(v.NLRI.(*bgp.LsSrv6SIDNLRI).LocalNodeDesc.(*bgp.LsTLVNodeDescriptor).Extract())
-			if err != nil {
-				return nil, err
-			}
-			srv6Info, ok := v.NLRI.(*bgp.LsSrv6SIDNLRI).Srv6SIDInfo.(*bgp.LsTLVSrv6SIDInfo)
-			if !ok {
-				return nil, fmt.Errorf("invalid SRv6 SID info type")
-			}
-			ssi, err := MarshalLsTLVSrv6SIDInfo(srv6Info)
-			if err != nil {
-				return nil, err
-			}
-			mti, err := MarshalLsTLVMultiTopoID(v.NLRI.(*bgp.LsSrv6SIDNLRI).MultiTopoID.(*bgp.LsTLVMultiTopoID))
-			if err != nil {
-				return nil, err
-			}
-			sc, ok := v.NLRI.(*bgp.LsSrv6SIDNLRI).ServiceChaining.(*bgp.LsTLVServiceChaining)
-			if !ok {
-				return nil, fmt.Errorf("invalid service chaining type")
-			}
-			serviceChaining, err := MarshalLsTLVServiceChaining(sc)
-			if err != nil {
-				return nil, err
-			}
-			opaqueMetadata, err := MarshalLsTLVOpaqueMetadata(v.NLRI.(*bgp.LsSrv6SIDNLRI).OpaqueMetadata.(*bgp.LsTLVOpaqueMetadata))
-			if err != nil {
-				return nil, err
-			}
 
-			// API側のLS SRv6 SID NLRIに正しくLocalNode情報をセット
-			nlri = &api.LsSrv6SIDNLRI{
-				LocalNode:          ln, // ここに生成済みのAPI型LocalNodeをセット
-				Srv6SidInformation: ssi,
-				MultiTopoId:        mti,
-				ServiceChaining:    serviceChaining,
-				OpaqueMetadata:     opaqueMetadata,
+		case *bgp.LsSrv6SIDNLRI:
+			srv6, err := MarshalLsSRv6SIDNLRI(n)
+			if err != nil {
+				return nil, err
 			}
-			// anySrv6, err := apb.New(srv6)
-			// if err != nil {
-			// 	return nil, err
-			// }
-			// nlri = &api.LsAddrPrefix{
-			// 	Type:       api.LsNLRIType(5),
-			// 	Length:     uint32(v.Length), // 必要に応じて再計算
-			// 	ProtocolId: 7,                // 7: BGP-LS
-			// 	Identifier: n.Identifier,
-			// 	Nlri:       anySrv6,
-			// }
+			nlri = &api.LsAddrPrefix{
+				Type:       api.LsNLRIType_LS_NLRI_SRV6_SID,
+				Nlri:       srv6,
+				Length:     uint32(v.Length),
+				ProtocolId: api.LsProtocolID(n.ProtocolID),
+				Identifier: n.Identifier,
+			}
 		}
 	case *bgp.SRPolicyIPv4:
 		nlri = &api.SRPolicyNLRI{
