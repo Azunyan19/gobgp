@@ -1637,25 +1637,25 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 		Value:      []byte(m["value"][0]),
 	}
 
-	const lsTlvLen = 7
-	const t = bgp.BGP_ATTR_TYPE_LS
-	const pathAttrHdrLen = 4
-	var tlvs []bgp.LsTLVInterface
-	tlvs = append(tlvs, &lndTLV)
-	tlvs = append(tlvs, mti)
-	tlvs = append(tlvs, ssi)
-	tlvs = append(tlvs, sc)
-	tlvs = append(tlvs, om)
-	length := uint16(pathAttrHdrLen + lsTlvLen)
 
-	pathAttributeLs := &bgp.PathAttributeLs{
-		PathAttribute: bgp.PathAttribute{
-			Flags:  bgp.PathAttrFlags[t],
-			Type:   t,
-			Length: length,
-		},
-		TLVs: tlvs,
-	}
+//	const lsTlvLen = 7
+//	const t = bgp.BGP_ATTR_TYPE_LS
+//	const pathAttrHdrLen = 4
+//	var tlvs []bgp.LsTLVInterface
+//	tlvs = append(tlvs, &lndTLV)
+//	tlvs = append(tlvs, mti)
+//	tlvs = append(tlvs, ssi)
+//	length := uint16(pathAttrHdrLen + lsTlvLen)
+
+//	pathAttributeLs := &bgp.PathAttributeLs{
+//		PathAttribute: bgp.PathAttribute{
+//			Flags:  bgp.PathAttrFlags[t],
+//			Type:   t,
+//			Length: length,
+//		},
+//		TLVs: tlvs,
+//	}
+
 
 	const CodeLen = 1
 	const topologyLen = 8
@@ -1678,7 +1678,7 @@ func parseLsSRv6SIDNLRIType(args []string) (bgp.AddrPrefixInterface, *bgp.PathAt
 			OpaqueMetadata:  om,
 		},
 	}
-	return nlri, pathAttributeLs, nil
+	return nlri, nil, nil
 }
 
 func lsTLVTypeSelect(s string) bgp.LsTLVType {
