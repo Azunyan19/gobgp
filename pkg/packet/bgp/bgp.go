@@ -5963,17 +5963,28 @@ func (l *LsTLVMultiTopoID) GetLsTLV() LsTLV {
 
 type LsSrv6SIDNLRI struct {
 	LsNLRI
-	LocalNodeDesc LsTLVInterface
-	MultiTopoID   LsTLVInterface
-	Srv6SIDInfo   LsTLVInterface
+	LocalNodeDesc   LsTLVInterface
+	MultiTopoID     LsTLVInterface
+	Srv6SIDInfo     LsTLVInterface
+	ServiceChaining LsTLVInterface // https://tools.ietf.org/html/draft-ietf-idr-bgp-ls-sr-service-segments#section-2
+	OpaqueMetadata  LsTLVInterface // https://tools.ietf.org/html/draft-ietf-idr-bgp-ls-sr-service-segments#section-2
 }
 
 func (l *LsSrv6SIDNLRI) String() string {
-	local := l.LocalNodeDesc.(*LsTLVNodeDescriptor).Extract()
-	srv6SID := l.Srv6SIDInfo.(*LsTLVSrv6SIDInfo)
-	multiTopo := l.MultiTopoID.(*LsTLVMultiTopoID)
+	strs := []string{
+		fmt.Sprintf("LOCAL_NODE: %v", l.LocalNodeDesc.(*LsTLVNodeDescriptor).Extract()),
+		fmt.Sprintf("SRv6_SID: %v", l.Srv6SIDInfo.(*LsTLVSrv6SIDInfo)),
+		fmt.Sprintf("MULTI_TOPO_IDs: %v", l.MultiTopoID.(*LsTLVMultiTopoID)),
+	}
 
-	return fmt.Sprintf("SRv6SID { LOCAL_NODE: %s SRv6_SID: %v MULTI_TOPO_IDs: %v}", local, srv6SID.String(), multiTopo.String())
+	if l.ServiceChaining != nil {
+		strs = append(strs, fmt.Sprintf("SERVICE_CHAINING: %v", l.ServiceChaining.(*LsTLVServiceChaining)))
+	}
+	if l.OpaqueMetadata != nil {
+		strs = append(strs, fmt.Sprintf("OPAQUE_METADATA: %v", l.OpaqueMetadata.(*LsTLVOpaqueMetadata)))
+	}
+
+	return "SRv6SID { " + strings.Join(strs, " ") + " }"
 }
 
 func (l *LsSrv6SIDNLRI) DecodeFromBytes(data []byte) error {
@@ -6000,6 +6011,10 @@ func (l *LsSrv6SIDNLRI) DecodeFromBytes(data []byte) error {
 			tLVInterface = &LsTLVSrv6SIDInfo{}
 		case LS_TLV_MULTI_TOPO_ID:
 			tLVInterface = &LsTLVMultiTopoID{}
+		case LS_TLV_SERVICE_CHAINING:
+			tLVInterface = &LsTLVServiceChaining{}
+		case LS_TLV_OPAQUE_METADATA:
+			tLVInterface = &LsTLVOpaqueMetadata{}
 		default:
 			tlvs = tlvs[tlv.Len():]
 			l.Length -= uint16(tlv.Len())
@@ -6018,6 +6033,10 @@ func (l *LsSrv6SIDNLRI) DecodeFromBytes(data []byte) error {
 			l.Srv6SIDInfo = tLVInterface
 		case LS_TLV_MULTI_TOPO_ID:
 			l.MultiTopoID = tLVInterface
+		case LS_TLV_SERVICE_CHAINING:
+			l.ServiceChaining = tLVInterface
+		case LS_TLV_OPAQUE_METADATA:
+			l.OpaqueMetadata = tLVInterface
 		}
 	}
 
@@ -6049,27 +6068,49 @@ func (l *LsSrv6SIDNLRI) Serialize() ([]byte, error) {
 	}
 	buf = append(buf, s...)
 
-	s, err = l.MultiTopoID.Serialize()
-	if err != nil {
-		return nil, err
+	if l.MultiTopoID != nil {
+		s, err = l.MultiTopoID.Serialize()
+		if err != nil {
+			return nil, err
+		}
+		buf = append(buf, s...)
 	}
-	buf = append(buf, s...)
+
+	if l.ServiceChaining != nil {
+		s, err = l.ServiceChaining.Serialize()
+		if err != nil {
+			return nil, err
+		}
+		buf = append(buf, s...)
+	}
+
+	if l.OpaqueMetadata != nil {
+		s, err = l.OpaqueMetadata.Serialize()
+		if err != nil {
+			return nil, err
+		}
+		buf = append(buf, s...)
+	}
 
 	return l.LsNLRI.Serialize(buf)
 }
 
 func (l *LsSrv6SIDNLRI) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Type        LsNLRIType       `json:"type"`
-		LocalNode   LsNodeDescriptor `json:"local_node_desc"`
-		Srv6SID     LsTLVSrv6SIDInfo `json:"srv6_sid_info"`
-		MultiTopoID LsTLVMultiTopoID `json:"multi_topo"`
+		Type            LsNLRIType           `json:"type"`
+		LocalNode       LsNodeDescriptor     `json:"local_node_desc"`
+		Srv6SID         LsTLVSrv6SIDInfo     `json:"srv6_sid_info"`
+		MultiTopoID     LsTLVMultiTopoID     `json:"multi_topo"`
+		ServiceChaining LsTLVServiceChaining `json:"service_chaining"`
+		OpaqueMetadata  LsTLVOpaqueMetadata  `json:"opaque_metadata"`
 	}{
 
-		Type:        l.Type(),
-		LocalNode:   *l.LocalNodeDesc.(*LsTLVNodeDescriptor).Extract(),
-		Srv6SID:     *l.Srv6SIDInfo.(*LsTLVSrv6SIDInfo),
-		MultiTopoID: *l.MultiTopoID.(*LsTLVMultiTopoID),
+		Type:            l.Type(),
+		LocalNode:       *l.LocalNodeDesc.(*LsTLVNodeDescriptor).Extract(),
+		Srv6SID:         *l.Srv6SIDInfo.(*LsTLVSrv6SIDInfo),
+		MultiTopoID:     *l.MultiTopoID.(*LsTLVMultiTopoID),
+		ServiceChaining: *l.ServiceChaining.(*LsTLVServiceChaining),
+		OpaqueMetadata:  *l.OpaqueMetadata.(*LsTLVOpaqueMetadata),
 	})
 }
 
@@ -6143,6 +6184,9 @@ const (
 	LS_TLV_PREFIX_ATTRIBUTE_FLAGS = 1170 // draft-ietf-idr-bgp-ls-segment-routing-ext, TODO
 	LS_TLV_SOURCE_ROUTER_ID       = 1171 // draft-ietf-idr-bgp-ls-segment-routing-ext, TODO
 	LS_TLV_L2_BUNDLE_MEMBER_TLV   = 1172 // draft-ietf-idr-bgp-ls-segment-routing-ext, TODO
+
+	LS_TLV_SERVICE_CHAINING = 65000 // draft-ietf-idr-bgp-ls-segment-segments, TODO
+	LS_TLV_OPAQUE_METADATA  = 65001 // draft-ietf-idr-bgp-ls-segment-segments, TODO
 )
 
 type LsTLVInterface interface {
@@ -9073,6 +9117,125 @@ func (l *LsTLVSrlg) MarshalJSON() ([]byte, error) {
 }
 
 func (l *LsTLVSrlg) GetLsTLV() LsTLV {
+	return l.LsTLV
+}
+
+// https://tools.ietf.org/html/draft-ietf-idr-bgp-ls-sr-service-segments#section-2
+// ServiceChaining
+type LsTLVServiceChaining struct {
+	LsTLV
+	ServiceType uint16
+	Flags       uint8
+	TrafficType uint8
+}
+
+func (l *LsTLVServiceChaining) DecodeFromBytes(data []byte) error {
+	value, err := l.LsTLV.DecodeFromBytes(data)
+	if err != nil {
+		return err
+	}
+
+	if l.Type != LS_TLV_SERVICE_CHAINING {
+		return malformedAttrListErr("Unexpected TLV type")
+	}
+
+	if len(value) != 6 {
+		return malformedAttrListErr("Incorrect length of Service Chaining TLV")
+	}
+
+	l.ServiceType = binary.BigEndian.Uint16(value[:2])
+	l.Flags = value[2]
+	l.TrafficType = value[3]
+
+	return nil
+}
+
+func (l *LsTLVServiceChaining) Serialize() ([]byte, error) {
+	var buf [6]byte
+	binary.BigEndian.PutUint16(buf[:2], l.ServiceType)
+	buf[2] = l.Flags
+	buf[3] = l.TrafficType
+	copy(buf[4:], []byte{0, 0}) // Reserved
+
+	return l.LsTLV.Serialize(buf[:])
+}
+
+func (l *LsTLVServiceChaining) String() string {
+	return fmt.Sprintf("{ServiceType: %v, Flags: %v, TrafficType: %v}", l.ServiceType, l.Flags, l.TrafficType)
+}
+
+func (l *LsTLVServiceChaining) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type        LsTLVType `json:"type"`
+		ServiceType uint16    `json:"service_type"`
+		Flags       uint8     `json:"flags"`
+		TrafficType uint8     `json:"traffic_type"`
+	}{
+		Type:        l.Type,
+		ServiceType: l.ServiceType,
+		Flags:       l.Flags,
+		TrafficType: l.TrafficType,
+	})
+}
+
+func (l *LsTLVServiceChaining) GetLsTLV() LsTLV {
+	return l.LsTLV
+}
+
+type LsTLVOpaqueMetadata struct {
+	LsTLV
+	OpaqueType uint16
+	Flags      uint8
+	Value      []byte
+}
+
+func (l *LsTLVOpaqueMetadata) DecodeFromBytes(data []byte) error {
+	value, err := l.LsTLV.DecodeFromBytes(data)
+	if err != nil {
+		return err
+	}
+
+	if l.Type != LS_TLV_OPAQUE_METADATA {
+		return malformedAttrListErr("Unexpected TLV type")
+	}
+
+	l.OpaqueType = binary.BigEndian.Uint16(value[:2])
+	l.Flags = value[2]
+	l.Value = value[3:]
+
+	return nil
+}
+
+func (l *LsTLVOpaqueMetadata) Serialize() ([]byte, error) {
+	const OPAQUETYPE_FLAGS_LEN = 3 // OpaqueType(2) + Flags(1)
+	length := OPAQUETYPE_FLAGS_LEN + len(l.Value)
+	buf := make([]byte, length)
+	binary.BigEndian.PutUint16(buf[:2], l.OpaqueType)
+	buf[2] = l.Flags
+	copy(buf[3:], l.Value)
+
+	return l.LsTLV.Serialize(buf[:])
+}
+
+func (l *LsTLVOpaqueMetadata) String() string {
+	return fmt.Sprintf("{OpaqueType: %v, Flags: %v, Value: %v\n}", l.OpaqueType, l.Flags, l.Value)
+}
+
+func (l *LsTLVOpaqueMetadata) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type       LsTLVType `json:"type"`
+		OpaqueType uint16    `json:"opaque_type"`
+		Flags      uint8     `json:"flags"`
+		Value      []byte    `json:"value"`
+	}{
+		Type:       l.Type,
+		Flags:      l.Flags,
+		OpaqueType: l.OpaqueType,
+		Value:      l.Value,
+	})
+}
+
+func (l *LsTLVOpaqueMetadata) GetLsTLV() LsTLV {
 	return l.LsTLV
 }
 

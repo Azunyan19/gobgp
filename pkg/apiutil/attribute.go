@@ -803,11 +803,25 @@ func MarshalLsSRv6SIDNLRI(n *bgp.LsSrv6SIDNLRI) (*apb.Any, error) {
 	if err != nil {
 		return nil, err
 	}
+	sc, ok := n.ServiceChaining.(*bgp.LsTLVServiceChaining)
+	if !ok {
+		return nil, fmt.Errorf("invalid service chaining type")
+	}
+	serviceChaining, err := MarshalLsTLVServiceChaining(sc)
+	if err != nil {
+		return nil, err
+	}
+	opaqueMetadata, err := MarshalLsTLVOpaqueMetadata(n.OpaqueMetadata.(*bgp.LsTLVOpaqueMetadata))
+	if err != nil {
+		return nil, err
+	}
 
 	srv6sid := &api.LsSrv6SIDNLRI{
 		LocalNode:          ln,
 		Srv6SidInformation: ssi,
 		MultiTopoId:        mti,
+		ServiceChaining:    serviceChaining,
+		OpaqueMetadata:     opaqueMetadata,
 	}
 	a, _ := apb.New(srv6sid)
 
@@ -951,6 +965,40 @@ func UnmarshalLsTLVMultiTopoID(mti *api.LsMultiTopologyIdentifier) (*bgp.LsTLVMu
 			Length: mtiLen,
 		},
 		MultiTopoIDs: multiTopoIDs,
+	}, nil
+}
+
+func UnmarshalLsTLVServiceChaining(sc *api.LsServiceChaining) (*bgp.LsTLVServiceChaining, error) {
+	return &bgp.LsTLVServiceChaining{
+		LsTLV: bgp.LsTLV{
+			Type:   bgp.LS_TLV_SERVICE_CHAINING,
+			Length: 6,
+		},
+		ServiceType: uint16(sc.Servicetype),
+		Flags:       uint8(sc.Flags),
+		TrafficType: uint8(sc.Traffictype),
+	}, nil
+}
+
+func MarshalLsTLVServiceChaining(sc *bgp.LsTLVServiceChaining) (*api.LsServiceChaining, error) {
+	return &api.LsServiceChaining{
+		Servicetype: uint32(sc.ServiceType),
+		Flags:       uint32(sc.Flags),
+		Traffictype: uint32(sc.TrafficType),
+	}, nil
+}
+
+func UnmarshalLsTLVOpaqueMetadata(om *api.LsOpaqueMetadata) (*bgp.LsTLVOpaqueMetadata, error) {
+	const OPAQUETYPE_FLAGS_LEN = 3 // OpaqueType(2) + Flags(1)
+	omLen := OPAQUETYPE_FLAGS_LEN + len(om.Value)
+	return &bgp.LsTLVOpaqueMetadata{
+		LsTLV: bgp.LsTLV{
+			Type:   bgp.LS_TLV_OPAQUE_METADATA,
+			Length: uint16(omLen),
+		},
+		OpaqueType: uint16(om.Opaquetype),
+		Flags:      uint8(om.Flags),
+		Value:      om.Value,
 	}, nil
 }
 
@@ -1364,7 +1412,6 @@ func MarshalNLRI(value bgp.AddrPrefixInterface) (*apb.Any, error) {
 				ProtocolId: api.LsProtocolID(n.ProtocolID),
 				Identifier: n.Identifier,
 			}
-
 		case *bgp.LsLinkNLRI:
 			node, err := MarshalLsLinkNLRI(n)
 			if err != nil {
@@ -1377,7 +1424,6 @@ func MarshalNLRI(value bgp.AddrPrefixInterface) (*apb.Any, error) {
 				ProtocolId: api.LsProtocolID(n.ProtocolID),
 				Identifier: n.Identifier,
 			}
-
 		case *bgp.LsPrefixV4NLRI:
 			node, err := MarshalLsPrefixV4NLRI(n)
 			if err != nil {
@@ -1390,7 +1436,6 @@ func MarshalNLRI(value bgp.AddrPrefixInterface) (*apb.Any, error) {
 				ProtocolId: api.LsProtocolID(n.ProtocolID),
 				Identifier: n.Identifier,
 			}
-
 		case *bgp.LsPrefixV6NLRI:
 			node, err := MarshalLsPrefixV6NLRI(n)
 			if err != nil {
@@ -1846,13 +1891,25 @@ func UnmarshalNLRI(rf bgp.RouteFamily, an *apb.Any) (bgp.AddrPrefixInterface, er
 				return nil, err
 			}
 
+			scTLV, err := UnmarshalLsTLVServiceChaining(tp.ServiceChaining)
+			if err != nil {
+				return nil, err
+			}
+
+			omTLV, err := UnmarshalLsTLVOpaqueMetadata(tp.OpaqueMetadata)
+			if err != nil {
+				return nil, err
+			}
+
 			nlri = &bgp.LsAddrPrefix{
 				Type:   bgp.LS_NLRI_TYPE_SRV6_SID,
 				Length: uint16(v.Length),
 				NLRI: &bgp.LsSrv6SIDNLRI{
-					LocalNodeDesc: &lndTLV,
-					MultiTopoID:   mtiTLV,
-					Srv6SIDInfo:   ssiTLV,
+					LocalNodeDesc:   &lndTLV,
+					MultiTopoID:     mtiTLV,
+					Srv6SIDInfo:     ssiTLV,
+					ServiceChaining: scTLV,
+					OpaqueMetadata:  omTLV,
 					LsNLRI: bgp.LsNLRI{
 						NLRIType:   bgp.LsNLRIType(v.Type),
 						Length:     uint16(v.Length),
@@ -2816,6 +2873,14 @@ func MarshalSRSegments(segs []bgp.TunnelEncapSubTLVInterface) ([]*apb.Any, error
 }
 
 // UnmarshalSRSegments unmarshals SR Policy Segments slice of structs
+func MarshalLsTLVOpaqueMetadata(om *bgp.LsTLVOpaqueMetadata) (*api.LsOpaqueMetadata, error) {
+	return &api.LsOpaqueMetadata{
+		Opaquetype: uint32(om.OpaqueType),
+		Flags:      uint32(om.Flags),
+		Value:      om.Value,
+	}, nil
+}
+
 func UnmarshalSRSegments(s []*apb.Any) ([]bgp.TunnelEncapSubTLVInterface, error) {
 	if len(s) == 0 {
 		return nil, nil
