@@ -3615,6 +3615,71 @@ func Test_LsTLVSrv6SIDInfo(t *testing.T) {
 	}
 }
 
+func Test_LsTLVServiceChaining(t *testing.T) {
+	assert := assert.New(t)
+
+	var tests = []struct {
+		in        []byte
+		str       string
+		err       bool
+		serialize bool
+	}{
+		{[]byte{
+			0xfd, 0xe8, 0x00, 0x06, // TLV SRv6 SID Information, correct length
+			0x00, 0x01, // Service Type: 1
+			0x00,       // Flags: 0
+			0x02,       // Traffic Type: 2
+			0x00, 0x00, // RESERVED (must be 0)
+		}, "{ServiceType: 1, Flags: 0, TrafficType: 2}", false, true},
+	}
+	for _, test := range tests {
+		sc := LsTLVServiceChaining{}
+		if test.err {
+			assert.Error(sc.DecodeFromBytes(test.in))
+		} else {
+			assert.NoError(sc.DecodeFromBytes(test.in))
+			assert.Equal(test.str, sc.String())
+			if test.serialize {
+				got, err := sc.Serialize()
+				assert.NoError(err)
+				assert.Equal(test.in, got)
+			}
+		}
+	}
+}
+
+func Test_LsTLVOpaqueMetadata(t *testing.T) {
+	assert := assert.New(t)
+
+	var tests = []struct {
+		in        []byte
+		str       string
+		err       bool
+		serialize bool
+	}{
+		{[]byte{
+			0xfd, 0xe9, 0x00, 0x07, // TLV Opaque Metadata, correct length
+			0x00, 0x01, // Opaque Type: 1
+			0x00,                   // Flags: 0
+			0x74, 0x65, 0x73, 0x74, // Value: "test"
+		}, "{OpaqueType: 1, Flags: 0, Value: [116 101 115 116]\n}", false, true},
+	}
+	for _, test := range tests {
+		om := LsTLVOpaqueMetadata{}
+		if test.err {
+			assert.Error(om.DecodeFromBytes(test.in))
+		} else {
+			assert.NoError(om.DecodeFromBytes(test.in))
+			assert.Equal(test.str, om.String())
+			if test.serialize {
+				got, err := om.Serialize()
+				assert.NoError(err)
+				assert.Equal(test.in, got)
+			}
+		}
+	}
+}
+
 func Test_PathAttributeLs(t *testing.T) {
 	assert := assert.New(t)
 
