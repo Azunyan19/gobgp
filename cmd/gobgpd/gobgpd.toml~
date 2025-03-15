@@ -1,0 +1,12 @@
+[global.config]
+as = 65000
+router-id = "192.168.255.1"
+
+[[neighbors]]
+[neighbors.config]
+neighbor-address = 
+peer-as = 65001
+
+[[neighbors.afi-safis]]
+[neighbors.afi-safis.config]
+afi-safi-name = "ls"
